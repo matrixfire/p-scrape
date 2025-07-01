@@ -1,0 +1,482 @@
+[
+  {
+    "name": "csrfToken",
+    "value": "0VycrPYZDfQco9CNkvC8JgRU",
+    "domain": "www.cjdropshipping.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "lng",
+    "value": "zh",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785921152.379233,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "language",
+    "value": "en|zh-CN",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785921152.379255,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "googtrans",
+    "value": "/en/zh-CN",
+    "domain": "www.cjdropshipping.com",
+    "path": "/",
+    "expires": 1782897157,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "currency",
+    "value": "currency%253DUSD%253BNAME%253D%25E7%25BE%258E%25E5%2585%2583%253BID%253DCN%253Bsymbol%253D%2524%253Brate%253D1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "temp-agent-flag",
+    "value": "1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751447553,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "country",
+    "value": "AF",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1782897154,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "loginName",
+    "value": "a3VtYWk=",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "token",
+    "value": "VVNSQENKNDIzNDk4NEBMMEBDSjphZTVlYWU4Zjg2MTk0YjcxODA3YjhjYjhjYzdiOWQ5ZTE=",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "name",
+    "value": "dGhvbWFzIGNoYW4=",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "firstName",
+    "value": "dGhvbWFz",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "lastName",
+    "value": "Y2hhbg==",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "email",
+    "value": "dHljaGFuQDE2My5jb20=",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "phone",
+    "value": "ODYtMTg2NjYxMDc4ODY=",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "relateSalesman",
+    "value": "QW5keSBDaG91",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "salesmanId",
+    "value": "Mg==",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "cjLoginName",
+    "value": "kumai",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "accessToken",
+    "value": "USR@CJ4234984@L0@CJ:eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJDSjQyMzQ5ODQsZmFsc2UiLCJpbmZvIjp7InVzZXJJZCI6IjE5MTY1MDczODIwMTI0NTI4NjQiLCJ0b0NqRXJwSWQiOm51bGwsInRvQ2pFbXBsb3llZU51bWJlciI6bnVsbCwidG9DakZsb3dlck5hbWUiOm51bGwsImludGVybmFsRW1wbG95ZWVJZCI6bnVsbCwiaW50ZXJuYWxFbXBsb3llZU5hbWUiOm51bGwsInN1YlVzZXJJZCI6bnVsbCwic3ViTnVtYmVyIjpudWxsLCJzdWJMb2dpbk5hbWUiOm51bGwsImNvZFN0YXR1cyI6bnVsbCwic3lzdGVtIjoiQ0oiLCJwbGF0Zm9ybSI6MiwiY2pBcHBUeXBlIjoxfSwiaWF0IjoxNzUxMzYxMTU5LCJleHAiOjE3ODI0NjUxNTl9.1mJB_3EJVpfeVR8orndNM4dJrrBtgcXTdW2tU22PuVk",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "cjLoginToken",
+    "value": "USR@CJ4234984@L0@CJ:ae5eae8f86194b71807b8cb8cc7b9d9e1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "vip",
+    "value": "0",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "userId",
+    "value": "MTkxNjUwNzM4MjAxMjQ1Mjg2NA==",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "avatar",
+    "value": "https://cc-west-usa.oss-us-west-1.aliyuncs.com/ba627238-87d7-41a9-86f1-960b4cc07ebf.png",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "emailVerifyStatus",
+    "value": "1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620358,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "isFirstLogin",
+    "value": "0",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "loginTime",
+    "value": "1751361157250",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "memberLevelTagType",
+    "value": "Free",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "plusExpirationTime",
+    "value": "1751361157250",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "num",
+    "value": "CJ4234984",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "moneyLevelType",
+    "value": "1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "specifyVisible",
+    "value": "1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "SHOWMESSAGE",
+    "value": "NSKv",
+    "domain": "www.cjdropshipping.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "menuCollapsed",
+    "value": "true",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751620357,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_uetsid",
+    "value": "88b312a0565b11f0807d57a487a746b6",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1751447558,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_uetvid",
+    "value": "88b303c0565b11f0a492f1c6f3d4e117",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785057158,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_fbp",
+    "value": "fb.1.1751361158397.437654072974472644",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1759137158,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "MUID",
+    "value": "1DD9A370FEA26BF40019B56CFFB26ADD",
+    "domain": ".bing.com",
+    "path": "/",
+    "expires": 1785057159.464273,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "MR",
+    "value": "0",
+    "domain": ".bat.bing.com",
+    "path": "/",
+    "expires": 1751965959.464319,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "_ttp",
+    "value": "2zGd5dqVfqn7gl36AAkENeDdfdF",
+    "domain": ".tiktok.com",
+    "path": "/",
+    "expires": 1785057158.552586,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "_tt_enable_cookie",
+    "value": "1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785057158,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_ttp",
+    "value": "01JZ2M4ZHFZ691PA1YGAPRTPQS_.tt.1",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785057158,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "ttcsid",
+    "value": "1751361158707::ZYyAECSEbk_UkUNB5sDB.1.1751361158708",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785057158,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "anonymousToken",
+    "value": "d5880d8e0f9aae00eb8323911e6dcb32604ffd83fa3241cb949bb09d38c8fb03",
+    "domain": "www.cjdropshipping.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "ttcsid_CLFH9ABC77U3CGPHMVJ0",
+    "value": "1751361158707::b_t8WuzK0FKiKzlQdS2p.1.1751361158932",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785057158,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "ttcsid_CV93BHBC77UBK441U280",
+    "value": "1751361158707::hfRvb1W2rchJKfyBaVre.1.1751361158933",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785057158,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "SHOWMESSAGE",
+    "value": "NSKv",
+    "domain": "chat.cjdropshipping.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_ga_2FHGJ78Y24",
+    "value": "GS2.1.s1751361158$o1$g0$t1751361158$j60$l0$h0",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785921160.63921,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_ga",
+    "value": "GA1.1.890578278.1751361161",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785921160.647423,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_ga_S2Q09M5ZGM",
+    "value": "GS2.1.s1751361158$o1$g0$t1751361158$j60$l0$h0",
+    "domain": ".cjdropshipping.com",
+    "path": "/",
+    "expires": 1785921160.647151,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  }
+]
