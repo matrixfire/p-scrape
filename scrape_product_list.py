@@ -32,7 +32,7 @@ def scrape_product_list():
         print("Timeout: Product cards did not appear in time!")
 
     # Use Playwright to extract product data
-    product_cards = page.query_selector_all("div[class^='thrid--']")
+    product_cards = page.query_selector_all("div.product-card")
     print(f"Found {len(product_cards)} product cards")
     if len(product_cards) == 0:
         page.screenshot(path='debug_screenshot.png')
@@ -47,9 +47,46 @@ def scrape_product_list():
     # --- EXTRACT PRODUCT DATA FROM PRODUCT CARDS ---
     for card in product_cards:
         try:
-            price = card.query_selector("span[class*='sellPriceSpan']").inner_text().strip()
-            currency = card.query_selector("span[class*='sellCurrency']").inner_text().strip()
-            print({'price': price, 'currency': currency})
+            # The <a> tag containing most info
+            a_tag = card.query_selector("a.productCard--nLiHk")
+            # Name
+            name = a_tag.query_selector("div[class*='name']").inner_text().strip() if a_tag and a_tag.query_selector("div[class*='name']") else None
+            # Price
+            price = a_tag.query_selector("span[class*='sellPriceSpan']").inner_text().strip() if a_tag and a_tag.query_selector("span[class*='sellPriceSpan']") else None
+            # Currency
+            currency = a_tag.query_selector("span[class*='sellCurrency']").inner_text().strip() if a_tag and a_tag.query_selector("span[class*='sellCurrency']") else None
+            # Advertisement Quantity
+            ad_quantity = a_tag.query_selector("div[class*='second'] span").inner_text().strip() if a_tag and a_tag.query_selector("div[class*='second'] span") else None
+            # Product URL
+            product_url = a_tag.get_attribute('href') if a_tag else None
+            # Product ID
+            product_id = None
+            try:
+                tracking_elem = a_tag.query_selector("div[class*='productImage'] div[class*='fillBtn']") if a_tag else None
+                if tracking_elem:
+                    tracking_data = tracking_elem.get_attribute('data-tracking-element-click')
+                    if tracking_data:
+                        product_id = json.loads(tracking_data)['list'][0]['fieldValue']
+            except Exception:
+                pass
+            # Image URL
+            image_url = None
+            try:
+                img_elem = a_tag.query_selector("img") if a_tag else None
+                if img_elem:
+                    image_url = img_elem.get_attribute('data-src')
+            except Exception:
+                pass
+            product_data = {
+                'name': name,
+                'price': price,
+                'currency': currency,
+                'ad_quantity': ad_quantity,
+                'product_url': product_url,
+                'product_id': product_id,
+                'image_url': image_url
+            }
+            print(product_data)
         except Exception as e:
             print(f"Error parsing product card: {e}")
 
