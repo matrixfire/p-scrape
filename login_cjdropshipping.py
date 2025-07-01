@@ -1,3 +1,4 @@
+import json
 from playwright.sync_api import sync_playwright
 
 def run():
@@ -22,6 +23,11 @@ def run():
         # Wait for navigation or some element that indicates login success
         page.wait_for_timeout(5000)  # Wait 5 seconds for demo purposes
 
+        # Save cookies to a file
+        cookies = page.context.cookies()
+        with open('cj_cookies.json', 'w', encoding='utf-8') as f:
+            json.dump(cookies, f, ensure_ascii=False, indent=2)
+            
         browser.close()
 
 if __name__ == "__main__":
