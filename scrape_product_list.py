@@ -24,6 +24,7 @@ def init_mongo_scraped() -> Optional[Collection]:
         print(f"❌ MongoDB connection failed: {e}")
         return None
 
+
 def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> None:
     for product in products:
         if collection.find_one({"product_id": product["product_id"]}):
@@ -103,6 +104,7 @@ def scrape_single_product_list_page(page, url):
         if data:
             products.append(data)
     return products
+
 
 def scrape_multiple_pages(base_url, num_pages=3):
     playwright = sync_playwright().start()
