@@ -1,3 +1,6 @@
 playwright
 scrapy
-beautifulsoup4 
+beautifulsoup4
+fake-useragent
+python-dotenv
+pymongo
