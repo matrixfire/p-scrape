@@ -54,7 +54,13 @@ def scrape_product_list():
             # Price
             price = a_tag.query_selector("span[class*='sellPriceSpan']").inner_text().strip() if a_tag and a_tag.query_selector("span[class*='sellPriceSpan']") else None
             # Currency
-            currency = a_tag.query_selector("span[class*='sellCurrency']").inner_text().strip() if a_tag and a_tag.query_selector("span[class*='sellCurrency']") else None
+            currency = None
+            currency_spans = a_tag.query_selector_all("span[class*='sellCurrency']") if a_tag else []
+            for span in currency_spans:
+                text = span.inner_text().strip()
+                if text:
+                    currency = text
+                    break
             # Advertisement Quantity
             ad_quantity = a_tag.query_selector("div[class*='second'] span").inner_text().strip() if a_tag and a_tag.query_selector("div[class*='second'] span") else None
             # Product URL
