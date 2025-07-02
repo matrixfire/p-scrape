@@ -143,10 +143,11 @@ def scrape_product_detail_page(context, product_url: str) -> Optional[str]:
         return None
 
 
-def scrape_multiple_pages(base_url: str, num_pages: int = 1) -> List[Dict[str, Any]]:
+def scrape_multiple_pages(base_url: str, num_pages: int = 3) -> List[Dict[str, Any]]:
     playwright = sync_playwright().start()
     browser, context, page, _, _ = login_and_get_context(playwright=playwright, headless=False)
     all_products = []
+
     for page_num in range(1, num_pages + 1):
         url = f"{base_url}?pageNum={page_num}"
         logger.info(f"--- Scraping page {page_num}: {url} ---")
@@ -166,6 +167,7 @@ def scrape_multiple_pages(base_url: str, num_pages: int = 1) -> List[Dict[str, A
             sleep_time = random.uniform(1.5, 4.0)
             logger.info(f"Sleeping for {sleep_time:.2f} seconds before next page...")
             time.sleep(sleep_time)
+            
     browser.close()
     playwright.stop()
     return all_products
