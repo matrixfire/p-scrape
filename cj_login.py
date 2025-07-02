@@ -1,7 +1,7 @@
 import json
 from playwright.sync_api import sync_playwright
 
-def login_and_get_page(playwright=None, headless=False):
+def login_and_get_context(playwright=None, headless=False):
     # Optionally accept an existing playwright instance for reuse
     close_playwright = False
     if playwright is None:
@@ -21,5 +21,5 @@ def login_and_get_page(playwright=None, headless=False):
     cookies = context.cookies()
     with open('cj_cookies.json', 'w', encoding='utf-8') as f:
         json.dump(cookies, f, ensure_ascii=False, indent=2)
-    # Return browser and page for further use
-    return browser, page, playwright, close_playwright 
+    # Return browser, context, page, playwright, and close_playwright for further use
+    return browser, context, page, playwright, close_playwright 
