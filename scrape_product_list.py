@@ -1,6 +1,8 @@
 import json
 import random
 import time
+import logging
+from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from cj_login import login_and_get_page
@@ -9,7 +11,12 @@ from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
 
-PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html"
+PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
+BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
+
+# ========== Logging setup ==========
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 # ========== MongoDB helpers ==========
 def init_mongo_scraped() -> Optional[Collection]:
@@ -18,21 +25,19 @@ def init_mongo_scraped() -> Optional[Collection]:
         client = MongoClient(config['MONGO_URI'])
         db = client[config['DB_NAME']]
         collection = db[config['COLLECTION_NAME']]
-        print(f"✅ MongoDB connected: {config['DB_NAME']}.{config['COLLECTION_NAME']}")
+        logger.info(f"MongoDB connected: {config['DB_NAME']}.{config['COLLECTION_NAME']}")
         return collection
     except errors.ConnectionFailure as e:
-        print(f"❌ MongoDB connection failed: {e}")
+        logger.error(f"MongoDB connection failed: {e}")
         return None
-
 
 def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> None:
     for product in products:
         if collection.find_one({"product_id": product["product_id"]}):
-            print(f"⚠️ Already exists: {product['product_id']}")
+            logger.warning(f"Already exists: {product['product_id']}")
         else:
             collection.insert_one(product)
-            print(f"✅ Inserted: {product['name']}")
-
+            logger.info(f"Inserted: {product['name']}")
 
 def extract_product_data(card):
     try:
@@ -49,6 +54,8 @@ def extract_product_data(card):
                 break
         ad_quantity = a_tag.query_selector("div[class*='second'] span").inner_text().strip() if a_tag and a_tag.query_selector("div[class*='second'] span") else None
         product_url = a_tag.get_attribute('href') if a_tag else None
+        if product_url and not product_url.startswith("http"):
+            product_url = urljoin(BASE_URL, product_url)
         product_id = None
         try:
             tracking_elem = a_tag.query_selector("div[class*='productImage'] div[class*='fillBtn']") if a_tag else None
@@ -74,9 +81,10 @@ def extract_product_data(card):
             'product_id': product_id,
             'image_url': image_url
         }
+        logger.info(f"Scraped product: {product_data}")
         return product_data
     except Exception as e:
-        print(f"Error parsing product card: {e}")
+        logger.error(f"Error parsing product card: {e}")
         return None
 
 def scrape_single_product_list_page(page, url):
@@ -95,9 +103,9 @@ def scrape_single_product_list_page(page, url):
     try:
         page.wait_for_selector("div.product-card", timeout=15000)
     except Exception:
-        print(f"Timeout: Product cards did not appear in time for {url}!")
+        logger.warning(f"Timeout: Product cards did not appear in time for {url}!")
     product_cards = page.query_selector_all("div.product-card")
-    print(f"Found {len(product_cards)} product cards on {url}")
+    logger.info(f"Found {len(product_cards)} product cards on {url}")
     products = []
     for card in product_cards:
         data = extract_product_data(card)
@@ -105,20 +113,19 @@ def scrape_single_product_list_page(page, url):
             products.append(data)
     return products
 
-
-def scrape_multiple_pages(base_url, num_pages=3):
+def scrape_multiple_pages(base_url, num_pages=4):
     playwright = sync_playwright().start()
     browser, page, _, _ = login_and_get_page(playwright=playwright, headless=False)
     all_products = []
     for page_num in range(1, num_pages + 1):
         url = f"{base_url}?pageNum={page_num}"
-        print(f"\n--- Scraping page {page_num}: {url} ---")
+        logger.info(f"--- Scraping page {page_num}: {url} ---")
         products = scrape_single_product_list_page(page, url)
         all_products.extend(products)
         # Add random sleep to minimize anti-scraping detection
         if page_num < num_pages:
             sleep_time = random.uniform(1.5, 4.0)
-            print(f"Sleeping for {sleep_time:.2f} seconds before next page...")
+            logger.info(f"Sleeping for {sleep_time:.2f} seconds before next page...")
             time.sleep(sleep_time)
     browser.close()
     playwright.stop()
@@ -126,9 +133,9 @@ def scrape_multiple_pages(base_url, num_pages=3):
 
 if __name__ == "__main__":
     all_products = scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=3)
-    print(f"\nTotal products scraped: {len(all_products)}")
+    logger.info(f"Total products scraped: {len(all_products)}")
     for product in all_products:
-        print(product)
+        logger.info(product)
     # Save to MongoDB
     collection = init_mongo_scraped()
     if collection is not None:
