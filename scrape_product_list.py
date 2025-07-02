@@ -1,9 +1,36 @@
 import json
+import random
+import time
 from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from cj_login import login_and_get_page
+from config import get_scraped_db_config
+from pymongo.collection import Collection
+from pymongo import MongoClient, errors
+from typing import List, Dict, Any, Optional
 
 PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html"
+
+# ========== MongoDB helpers ==========
+def init_mongo_scraped() -> Optional[Collection]:
+    config = get_scraped_db_config()
+    try:
+        client = MongoClient(config['MONGO_URI'])
+        db = client[config['DB_NAME']]
+        collection = db[config['COLLECTION_NAME']]
+        print(f"✅ MongoDB connected: {config['DB_NAME']}.{config['COLLECTION_NAME']}")
+        return collection
+    except errors.ConnectionFailure as e:
+        print(f"❌ MongoDB connection failed: {e}")
+        return None
+
+def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> None:
+    for product in products:
+        if collection.find_one({"product_id": product["product_id"]}):
+            print(f"⚠️ Already exists: {product['product_id']}")
+        else:
+            collection.insert_one(product)
+            print(f"✅ Inserted: {product['name']}")
 
 
 def extract_product_data(card):
@@ -86,6 +113,11 @@ def scrape_multiple_pages(base_url, num_pages=3):
         print(f"\n--- Scraping page {page_num}: {url} ---")
         products = scrape_single_product_list_page(page, url)
         all_products.extend(products)
+        # Add random sleep to minimize anti-scraping detection
+        if page_num < num_pages:
+            sleep_time = random.uniform(1.5, 4.0)
+            print(f"Sleeping for {sleep_time:.2f} seconds before next page...")
+            time.sleep(sleep_time)
     browser.close()
     playwright.stop()
     return all_products
@@ -94,4 +126,8 @@ if __name__ == "__main__":
     all_products = scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=3)
     print(f"\nTotal products scraped: {len(all_products)}")
     for product in all_products:
-        print(product) 
+        print(product)
+    # Save to MongoDB
+    collection = init_mongo_scraped()
+    if collection is not None:
+        save_to_mongo(collection, all_products) 
