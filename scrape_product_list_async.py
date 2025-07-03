@@ -85,7 +85,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
             'product_id': product_id,
             'image_url': image_url
         }
-        logger.info(f"Scraped product: {product_data}")
+        # logger.info(f"Scraped product: {product_data}")
         return product_data
     except Exception as e:
         logger.error(f"Error parsing product card: {e}")
@@ -134,7 +134,7 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
             desc_div = soup.find("div", id="description-description")
             if desc_div:
                 desc_text = desc_div.get_text(separator='\n', strip=True)
-                logger.info(f"Extracted description for {product_url} (first 20 chars): {desc_text[:20]}")
+                logger.info(f"\n========== Extracted description for {product_url} (first 20 chars): {desc_text[:20]} ==========\n")
                 return desc_text
             else:
                 logger.warning(f"No description found for {product_url}")
