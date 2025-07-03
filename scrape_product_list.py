@@ -12,6 +12,8 @@ from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
 
+from utils import sync_timed
+
 PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
 BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
 
@@ -136,14 +138,14 @@ def scrape_product_detail_page(context, product_url: str) -> Optional[str]:
     desc_div = soup.find("div", id="description-description")
     if desc_div:
         desc_text = desc_div.get_text(separator='\n', strip=True)
-        logger.info(f"Extracted description for {product_url} (first 200 chars): {desc_text[:200]}")
+        logger.info(f"Extracted description for {product_url} (first 20 chars): {desc_text[:20]}")
         return desc_text
     else:
         logger.warning(f"No description found for {product_url}")
         return None
 
-
-def scrape_multiple_pages(base_url: str, num_pages: int = 3) -> List[Dict[str, Any]]:
+@sync_timed
+def scrape_multiple_pages(base_url: str, num_pages: int = 2) -> List[Dict[str, Any]]:
     playwright = sync_playwright().start()
     browser, context, page, _, _ = login_and_get_context(playwright=playwright, headless=False)
     all_products = []
@@ -160,7 +162,11 @@ def scrape_multiple_pages(base_url: str, num_pages: int = 3) -> List[Dict[str, A
                 if detail_text:
                     detail_info = detail_text[:20]  # Truncate to 20 chars
             product['detail_info'] = detail_info
-            logger.info(f"Enriched product: {product}")
+            logger.info(
+                "\n========== Enriched product ==========\n"
+                f"{json.dumps(product, indent=2, ensure_ascii=False)}\n"
+                "======================================\n"
+            )
         all_products.extend(products)
         # Add random sleep to minimize anti-scraping detection
         if page_num < num_pages:
@@ -174,10 +180,10 @@ def scrape_multiple_pages(base_url: str, num_pages: int = 3) -> List[Dict[str, A
 
 
 if __name__ == "__main__":
-    all_products = scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=3)
+    all_products = scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=2)
     logger.info(f"Total products scraped: {len(all_products)}")
-    for product in all_products:
-        logger.info(product)
+    # for product in all_products:
+    #     logger.info(product)
     # Save to MongoDB
     collection = init_mongo_scraped()
     if collection is not None:
