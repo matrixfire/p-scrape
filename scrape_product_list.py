@@ -144,6 +144,7 @@ def scrape_product_detail_page(context, product_url: str) -> Optional[str]:
         logger.warning(f"No description found for {product_url}")
         return None
 
+
 @sync_timed
 def scrape_multiple_pages(base_url: str, num_pages: int = 2) -> List[Dict[str, Any]]:
     playwright = sync_playwright().start()
