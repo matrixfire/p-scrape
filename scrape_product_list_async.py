@@ -1,4 +1,5 @@
 import json
+from pickle import DICT
 import random
 import asyncio
 import logging
@@ -9,10 +10,32 @@ from config import get_scraped_db_config
 from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
-from bs4 import BeautifulSoup
-import re
+
+
+from playwright.async_api import ElementHandle
 
 from utils import async_timed
+import re
+
+
+def transform_packaging_dimensions(input_dict: dict) -> dict:
+    new_dict = {k: v for k, v in input_dict.items() if k != '包装尺寸'}
+
+    if '包装尺寸' in input_dict:
+        dimension_sets = [d.strip() for d in input_dict['包装尺寸'].split(';') if d.strip()]
+        if dimension_sets:
+            last_dimension_str = dimension_sets[-1]
+            match = re.search(r'(\d+)\*(\d+)\*(\d+)\(mm\)', last_dimension_str)
+            if match:
+                new_dict['长'] = f"{float(match.group(1)) / 10:.0f}cm"
+                new_dict['宽'] = f"{float(match.group(2)) / 10:.0f}cm"
+                new_dict['高'] = f"{float(match.group(3)) / 10:.0f}cm"
+            else:
+                print(f"Warning: Could not parse packaging dimensions from '{last_dimension_str}'")
+        else:
+            print("Warning: '包装尺寸' key found but no valid dimension sets.")
+    return new_dict
+
 
 # PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
 PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-pet-supplies-l-2409110611570657700.html?pageNum=1&from=US"
@@ -43,6 +66,28 @@ def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> Non
         else:
             collection.insert_one(product)
             logger.info(f"Inserted: {product['name']}")
+
+
+async def extract_table_items(desc_elem: ElementHandle) -> Dict[str, str]:
+    """
+    Given a parent element desc_elem, extract key-value pairs from child elements
+    whose class includes "tableItem", and return them as a dictionary.
+    """
+    table_items = await desc_elem.query_selector_all("div[class*='tableItem']")
+    result = {}
+
+    for item in table_items:
+        label_elem = await item.query_selector("div[class*='tableLabel']")
+        text_elem = await item.query_selector("div[class*='tableText']")
+
+        # Extract inner text safely
+        label = await label_elem.inner_text() if label_elem else None
+        text = await text_elem.inner_text() if text_elem else None
+
+        if label and text:
+            result[label.strip()] = text.strip()
+
+    return result
 
 
 async def extract_product_data(card) -> Optional[Dict[str, Any]]:
@@ -121,7 +166,8 @@ async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]
     return products
 
 
-async def scrape_product_detail_page(context, product_url: str, semaphore: asyncio.Semaphore) -> Optional[str]:
+async def scrape_product_detail_page(context, product_url: str, semaphore: asyncio.Semaphore) -> Optional[Dict[str, Any]]:
+    detailed_info_dict = {}
     # Use a semaphore to limit the number of concurrent detail page scrapes
     async with semaphore:
         logger.info(f"Scraping detail page: {product_url}")
@@ -141,14 +187,14 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
             if desc_elem:
                 # Try to find a child div with class containing 'descriptionContainer'
                 child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
+                info_dict = await extract_table_items(desc_elem)
+                info_dict = transform_packaging_dimensions(info_dict)
                 if child_elem:
                     child_text = (await child_elem.inner_text()).strip()
-                    logger.info(f"\n\n========== Extracted child description for {product_url} (first 20 chars): {child_text[:20]} ==========\n\n")
-                    return child_text
-                else:
-                    desc_text = (await desc_elem.inner_text()).strip()
-                    logger.info(f"\n\n========== Extracted description for {product_url} (first 20 chars): {desc_text[:20]} ==========\n\n")
-                    return desc_text
+                    logger.info(f"\n\n========== Extracted child description for {product_url} (first 20 chars): {info_dict} ==========\n\n")
+                    detailed_info_dict['description'] = child_text
+                    detailed_info_dict.update(info_dict)
+                    return detailed_info_dict
             else:
                 # Log a warning if the description div is not found
                 logger.warning(f"No description found for {product_url}")
@@ -194,7 +240,8 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
                     detail_tasks.append(asyncio.sleep(0, result=None))
             detail_infos = await asyncio.gather(*detail_tasks)
             for product, detail_info in zip(products, detail_infos):
-                product['detail_info'] = detail_info[:20] if detail_info else None
+                # product['detail_info'] = detail_info[:20] if detail_info else None
+                product.update(detail_info)
                 logger.info(
                     "\n========== Enriched product =========="
                     f"{json.dumps(product, indent=2, ensure_ascii=False)}\n"
