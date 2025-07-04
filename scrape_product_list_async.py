@@ -10,10 +10,12 @@ from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
+import re
 
 from utils import async_timed
 
-PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
+# PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
+PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-pet-supplies-l-2409110611570657700.html?pageNum=1&from=US"
 BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
 
 # ========== Logging setup ==========
@@ -80,7 +82,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
             'name': name,
             'price': price,
             'currency': currency,
-            'ad_quantity': ad_quantity,
+            # 'ad_quantity': ad_quantity,
             'product_url': product_url,
             'product_id': product_id,
             'image_url': image_url
@@ -109,7 +111,7 @@ async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]
         await page.wait_for_selector("div.product-card", timeout=15000)
     except Exception:
         logger.warning(f"Timeout: Product cards did not appear in time for {url}!")
-    product_cards = await page.query_selector_all("div.product-card")
+    product_cards = await page.query_selector_all("div.product-card") # *** Extract product cards from the product list page
     logger.info(f"Found {len(product_cards)} product cards on {url}")
     products = []
     for card in product_cards:
@@ -120,40 +122,56 @@ async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]
 
 
 async def scrape_product_detail_page(context, product_url: str, semaphore: asyncio.Semaphore) -> Optional[str]:
+    # Use a semaphore to limit the number of concurrent detail page scrapes
     async with semaphore:
         logger.info(f"Scraping detail page: {product_url}")
+        # Open a new browser page for this product detail
         page = await context.new_page()
         try:
+            # Navigate to the product detail page with a timeout
             await page.goto(product_url, timeout=30000)
             try:
+                # Wait for the description section to appear (if it exists)
                 await page.wait_for_selector("div#description-description", timeout=15000)
             except PlaywrightTimeoutError:
+                # Log a warning if the description section does not appear in time
                 logger.warning(f"Timeout: description not found for {product_url}")
-            html = await page.content()
-            soup = BeautifulSoup(html, "html.parser")
-            desc_div = soup.find("div", id="description-description")
-            if desc_div:
-                desc_text = desc_div.get_text(separator='\n', strip=True)
-                logger.info(f"\n========== Extracted description for {product_url} (first 20 chars): {desc_text[:20]} ==========\n")
-                return desc_text
+            # Use Playwright's selector to get the description text
+            desc_elem = await page.query_selector("div#description-description")
+            if desc_elem:
+                # Try to find a child div with class containing 'descriptionContainer'
+                child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
+                if child_elem:
+                    child_text = (await child_elem.inner_text()).strip()
+                    logger.info(f"\n\n========== Extracted child description for {product_url} (first 20 chars): {child_text[:20]} ==========\n\n")
+                    return child_text
+                else:
+                    desc_text = (await desc_elem.inner_text()).strip()
+                    logger.info(f"\n\n========== Extracted description for {product_url} (first 20 chars): {desc_text[:20]} ==========\n\n")
+                    return desc_text
             else:
+                # Log a warning if the description div is not found
                 logger.warning(f"No description found for {product_url}")
                 return None
         except PlaywrightTimeoutError:
+            # Handle timeout errors when loading the page
             logger.error(f"Timeout loading page: {product_url}")
             return None
         except PlaywrightError as e:
+            # Handle other Playwright-specific errors
             logger.error(f"Playwright error for {product_url}: {e}")
             return None
         except Exception as e:
+            # Handle any other unexpected errors
             logger.error(f"Unexpected error for {product_url}: {e}")
             return None
         finally:
+            # Always attempt to close the page, even if an error occurred
             try:
                 await page.close()
             except Exception:
                 pass
-        # Optionally, add a small random sleep to reduce load
+        # Optionally, add a small random sleep to reduce load and avoid anti-scraping detection
         await asyncio.sleep(random.uniform(0.2, 0.6))
 
 
