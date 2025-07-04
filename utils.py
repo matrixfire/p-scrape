@@ -36,3 +36,17 @@ def sync_timed(func):
             total = end - start
             print(f'结束执行{func}，耗时：{total:.4f}秒')
     return wrapped
+
+
+from typing import Dict, List, Any
+
+def flatten_dict(input_dict: Dict[str, Any], list_field: str) -> List[Dict[str, Any]]:
+    """
+    Transforms a dict with a list of dicts under `list_field`
+    into a list of flattened dicts, copying all other top-level fields.
+    """
+    top_level_fields = {k: v for k, v in input_dict.items() if k != list_field}
+    return [
+        {**top_level_fields, **item}
+        for item in input_dict.get(list_field, [])
+    ]
