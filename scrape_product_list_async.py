@@ -166,6 +166,51 @@ async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]
     return products
 
 
+async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str, Any], product_url: str):
+    try:
+        # Step 1: Extract product and inventory data
+        product_data = await page.evaluate("() => window.productDetailData?.stanProducts || []")
+        variant_inventory_data = await page.evaluate("() => window.productDetailData?.variantInventory || []")
+
+        if product_data:
+            variants = []
+
+            # Build a lookup dictionary from vid -> inventory info
+            inventory_lookup = {}
+            for inv_entry in variant_inventory_data:
+                vid = inv_entry.get("vid")
+                inventory_list = inv_entry.get("inventory", [])
+
+                if inventory_list:
+                    inv = inventory_list[0]
+                    inventory_lookup[vid] = {
+                        "cjInventory": int(inv.get("cjInventory") or 0),
+                        "factoryInventory": int(inv.get("factoryInventory") or 0)
+                    }
+
+            # Match each product's id with inventory vid
+            for item in product_data:
+                sku = item.get("sku")
+                variant_id = item.get("id")  # same as vid
+
+                if sku:
+                    inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
+                    variants.append({
+                        "sku": sku,
+                        "id": variant_id,
+                        "cjInventory": inventory_info["cjInventory"],
+                        "factoryInventory": inventory_info["factoryInventory"]
+                    })
+
+            detailed_info_dict["variants"] = variants
+            # logger.info(f"Extracted {len(variants)} variants with SKUs and inventory from {product_url}")
+        else:
+            logger.warning(f"No stanProducts found for {product_url}")
+
+    except Exception as e:
+        logger.error(f"Failed to extract variant SKUs and inventory from JS on {product_url}: {e}")
+
+
 async def scrape_product_detail_page(context, product_url: str, semaphore: asyncio.Semaphore) -> Optional[Dict[str, Any]]:
     detailed_info_dict = {}
     # Use a semaphore to limit the number of concurrent detail page scrapes
@@ -176,18 +221,9 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
         try:
             # Navigate to the product detail page with a timeout
             await page.goto(product_url, timeout=30000)
-            
-            # === 1. Extract variant SKUs from JS ===
-            try:
-                product_data = await page.evaluate("() => window.productDetailData?.stanProducts || []")
-                if product_data:
-                    skus = [item["sku"] for item in product_data if "sku" in item]
-                    detailed_info_dict["variants"] = skus
-                    logger.info(f"Extracted {len(skus)} SKUs from variants on {product_url}")
-                else:
-                    logger.warning(f"No stanProducts found for {product_url}")
-            except Exception as e:
-                logger.error(f"Failed to extract variant SKUs from JS on {product_url}: {e}")
+
+            # === 1. Extract variant SKUs and info from JS ===
+            await extract_variant_skus_and_inventory(page, detailed_info_dict, product_url)
 
             # === 2. Wait for and extract description (same as your original) ===
             try:
@@ -205,7 +241,7 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
                 info_dict = transform_packaging_dimensions(info_dict)
                 if child_elem:
                     child_text = (await child_elem.inner_text()).strip()
-                    logger.info(f"\n\n========== Extracted child description for {product_url} (first 20 chars): {info_dict} ==========\n\n")
+                    logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
                     detailed_info_dict['description'] = child_text
                     detailed_info_dict.update(info_dict)
                     return detailed_info_dict
@@ -256,11 +292,11 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
             for product, detail_info in zip(products, detail_infos):
                 # product['detail_info'] = detail_info[:20] if detail_info else None
                 product.update(detail_info)
-                logger.info(
-                    "\n========== Enriched product =========="
-                    f"{json.dumps(product, indent=2, ensure_ascii=False)}\n"
-                    "======================================\n"
-                )
+                # logger.info(
+                #     "\n========== Enriched product =========="
+                #     f"{json.dumps(product, indent=2, ensure_ascii=False)}\n"
+                #     "======================================\n"
+                # )
             all_products.extend(products)
             # Add random sleep to minimize anti-scraping detection
             if page_num < num_pages:
