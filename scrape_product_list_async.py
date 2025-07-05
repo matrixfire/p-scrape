@@ -176,6 +176,20 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
         try:
             # Navigate to the product detail page with a timeout
             await page.goto(product_url, timeout=30000)
+            
+            # === 1. Extract variant SKUs from JS ===
+            try:
+                product_data = await page.evaluate("() => window.productDetailData?.stanProducts || []")
+                if product_data:
+                    skus = [item["sku"] for item in product_data if "sku" in item]
+                    detailed_info_dict["variants"] = skus
+                    logger.info(f"Extracted {len(skus)} SKUs from variants on {product_url}")
+                else:
+                    logger.warning(f"No stanProducts found for {product_url}")
+            except Exception as e:
+                logger.error(f"Failed to extract variant SKUs from JS on {product_url}: {e}")
+
+            # === 2. Wait for and extract description (same as your original) ===
             try:
                 # Wait for the description section to appear (if it exists)
                 await page.wait_for_selector("div#description-description", timeout=15000)
