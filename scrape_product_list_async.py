@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional
 
 from playwright.async_api import ElementHandle
 
-from utils import async_timed
+from utils import async_timed, resolve_currency
 import re
 
 
@@ -27,9 +27,10 @@ def transform_packaging_dimensions(input_dict: dict) -> dict:
             last_dimension_str = dimension_sets[-1]
             match = re.search(r'(\d+)\*(\d+)\*(\d+)\(mm\)', last_dimension_str)
             if match:
-                new_dict['长'] = f"{float(match.group(1)) / 10:.0f}cm"
-                new_dict['宽'] = f"{float(match.group(2)) / 10:.0f}cm"
-                new_dict['高'] = f"{float(match.group(3)) / 10:.0f}cm"
+                new_dict['length'] = f"{float(match.group(1)) / 10:.0f}"
+                new_dict['width'] = f"{float(match.group(2)) / 10:.0f}"
+                new_dict['height'] = f"{float(match.group(3)) / 10:.0f}"
+                new_dict['size_unit'] = "cm"
             else:
                 print(f"Warning: Could not parse packaging dimensions from '{last_dimension_str}'")
         else:
@@ -102,6 +103,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
             text = (await span.inner_text()).strip()
             if text:
                 currency = text
+                # print(f"currency is {currency}")
                 break
         ad_quantity = (await (await a_tag.query_selector("div[class*='second'] span")).inner_text()).strip() if a_tag and await a_tag.query_selector("div[class*='second'] span") else None
         product_url = await a_tag.get_attribute('href') if a_tag else None
@@ -126,7 +128,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
         product_data = {
             'name': name,
             'price': price,
-            'currency': currency,
+            'currency': resolve_currency(str(currency)),
             # 'ad_quantity': ad_quantity,
             'product_url': product_url,
             'product_id': product_id,
@@ -192,15 +194,26 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
             for item in product_data:
                 sku = item.get("sku")
                 variant_id = item.get("id")  # same as vid
+                variant_price = item.get("sellPrice")
+                variant_weight = item.get("weight")
+                variant_img = item.get("image").encode('utf-8').decode('unicode_escape')
 
                 if sku:
                     inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
-                    variants.append({
-                        "sku": sku,
-                        "id": variant_id,
+                    variant_details = {
+                        # "sku": sku,
+                        "sku": f"cj_{sku.lower()}",
+                        # "id": variant_id,
+                        "variant_id": variant_id,
                         "cjInventory": inventory_info["cjInventory"],
-                        "factoryInventory": inventory_info["factoryInventory"]
-                    })
+                        "factoryInventory": inventory_info["factoryInventory"],
+                        "price": variant_price,
+                        "weight": variant_weight,
+                        "weight_unit": "g",
+                        "variant_image": variant_img,
+                    }
+                    # print(variant_details)
+                    variants.append(variant_details)
 
             detailed_info_dict["variants"] = variants
             # logger.info(f"Extracted {len(variants)} variants with SKUs and inventory from {product_url}")
