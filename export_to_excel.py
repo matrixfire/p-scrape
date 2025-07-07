@@ -38,7 +38,7 @@ def fetch_and_flatten_data(collection):
             if 'variants' in doc and isinstance(doc['variants'], list):
                 # Use flatten_dict to flatten the document
                 flattened_docs = flatten_dict(doc, 'variants')
-                flattened_docs = list(map(lambda d: {**d, "product_id": f'{d["sku"]}_{d["product_id"]}'}, flattened_docs))
+                # flattened_docs = list(map(lambda d: {**d, "product_id": f'{d["sku"]}_{d["product_id"]}'}, flattened_docs))
                 flattened_data.extend(flattened_docs)
                 logger.info(f"Flattened document with {len(doc['variants'])} variants")
             else:
