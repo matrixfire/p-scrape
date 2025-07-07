@@ -2,6 +2,7 @@ import asyncio
 import time
 from functools import wraps
 
+from typing import Dict, List, Any
 
 def async_timed(func):
     """
@@ -38,7 +39,6 @@ def sync_timed(func):
     return wrapped
 
 
-from typing import Dict, List, Any
 
 def flatten_dict(input_dict: Dict[str, Any], list_field: str) -> List[Dict[str, Any]]:
     """
@@ -50,3 +50,53 @@ def flatten_dict(input_dict: Dict[str, Any], list_field: str) -> List[Dict[str, 
         {**top_level_fields, **item}
         for item in input_dict.get(list_field, [])
     ]
+
+
+
+def resolve_currency(input_value: str) -> str:
+    """
+    Resolves a currency symbol or code to a standardized ISO 4217 currency code (e.g., USD, EUR).
+
+    Args:
+        input_value (str): A currency symbol (e.g., "$") or code (e.g., "usd", "USD").
+
+    Returns:
+        str: ISO currency code (e.g., USD) or 'Unknown' if unrecognized.
+    """
+    input_value = input_value.strip().upper()
+
+    # ISO 4217 currency codes
+    iso_codes = {
+        "USD", "EUR", "GBP", "JPY", "INR", "KRW", "RUB", "TRY", "BRL", "VND",
+        "ILS", "THB", "UAH", "NGN", "CAD", "AUD", "NZD", "CHF", "HKD", "SGD", "美元"
+    }
+
+    # If it's already a valid ISO currency code
+    if input_value in iso_codes:
+        return input_value
+
+    # Map symbols to ISO currency codes
+    symbol_map = {
+        "$": "USD",
+        "€": "EUR",
+        "£": "GBP",
+        "¥": "JPY",
+        "₹": "INR",
+        "₩": "KRW",
+        "₽": "RUB",
+        "₺": "TRY",
+        "R$": "BRL",
+        "₫": "VND",
+        "₪": "ILS",
+        "฿": "THB",
+        "₴": "UAH",
+        "₦": "NGN",
+        "C$": "CAD",
+        "A$": "AUD",
+        "NZ$": "NZD",
+        "CHF": "CHF",
+        "HK$": "HKD",
+        "SGD": "SGD"
+    }
+
+    return symbol_map.get(input_value, input_value.upper())
