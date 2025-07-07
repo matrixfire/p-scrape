@@ -59,6 +59,9 @@ MONGO_TO_MYSQL_MAP = {
     'size_unit': 'length_unit',
     'color': 'color',
     'category': 'category',
+    'currency': 'language',
+    'factoryInventory': 'stock'
+
     # 'attribute' will be handled specially
     # 'bg_img' will use image_url as fallback
 }
@@ -94,6 +97,34 @@ def map_flattened_to_lis_en(row):
                 mapped[k] = row.get(k)
     return mapped
 
+INSERT_MODE = 'stock'  # Options: 'product', 'stock', 'both'
+
+# For insertt_p, map to lis_en2
+LIS_EN2 = ['sku', 'id', 'stock', 'price', 'status', 'update_time']
+MONGO_TO_MYSQL_MAP_P = {
+    'sku': 'sku',
+    'product_id': 'id',
+    'factoryInventory': 'stock',
+    'price': 'price',
+    'status': 'status',
+    # 'update_time' will be set in insertt_p
+}
+
+def map_flattened_to_lis_en2(row):
+    mapped = {}
+    for k in LIS_EN2:
+        # Find the mongo key for this lis_en2 key
+        mongo_key = None
+        for mk, lk in MONGO_TO_MYSQL_MAP_P.items():
+            if lk == k:
+                mongo_key = mk
+                break
+        if mongo_key:
+            mapped[k] = row.get(mongo_key)
+        else:
+            mapped[k] = row.get(k)
+    return mapped
+
 def main():
     logger.info("Starting MongoDB to MySQL export process...")
     collection = connect_to_mongodb()
@@ -107,19 +138,35 @@ def main():
     # Map and print the first 3 mapped records for debugging
     for i, row in enumerate(flattened_data[:3]):
         mapped = map_flattened_to_lis_en(row)
-        print(f"\nMapped record {i+1}: {mapped}\n\n\n")
+        mapped_p = map_flattened_to_lis_en2(row)
+        print(f"\nMapped product record {i+1}: {mapped}\nMapped stock/price record {i+1}: {mapped_p}\n\n\n")
     success_count = 0
     fail_count = 0
+    success_count_p = 0
+    fail_count_p = 0
     for i, row in enumerate(flattened_data):
-        mapped = map_flattened_to_lis_en(row)
-        try:
-            insertt(mapped)
-            logger.info(f"Inserted row {i+1} into MySQL: {mapped.get('sku', mapped.get('id', 'N/A'))}")
-            success_count += 1
-        except Exception as e:
-            logger.error(f"Failed to insert row {i+1}: {e}\nData: {mapped}")
-            fail_count += 1
-    logger.info(f"Inserted {success_count} rows into MySQL. Failed: {fail_count}")
+        if INSERT_MODE in ('product', 'both'):
+            mapped = map_flattened_to_lis_en(row)
+            try:
+                insertt(mapped)
+                logger.info(f"[product] Inserted row {i+1} into MySQL: {mapped.get('sku', mapped.get('id', 'N/A'))}")
+                success_count += 1
+            except Exception as e:
+                logger.error(f"[product] Failed to insert row {i+1}: {e}\nData: {mapped}")
+                fail_count += 1
+        if INSERT_MODE in ('stock', 'both'):
+            mapped_p = map_flattened_to_lis_en2(row)
+            try:
+                insertt_p(mapped_p)
+                logger.info(f"[stock] Inserted row {i+1} into MySQL: {mapped_p.get('sku', mapped_p.get('id', 'N/A'))}")
+                success_count_p += 1
+            except Exception as e:
+                logger.error(f"[stock] Failed to insert row {i+1}: {e}\nData: {mapped_p}")
+                fail_count_p += 1
+    if INSERT_MODE in ('product', 'both'):
+        logger.info(f"[product] Inserted {success_count} rows into MySQL. Failed: {fail_count}")
+    if INSERT_MODE in ('stock', 'both'):
+        logger.info(f"[stock] Inserted {success_count_p} rows into MySQL. Failed: {fail_count_p}")
 
 if __name__ == "__main__":
     main() 
