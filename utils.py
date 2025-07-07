@@ -68,7 +68,7 @@ def resolve_currency(input_value: str) -> str:
     # ISO 4217 currency codes
     iso_codes = {
         "USD", "EUR", "GBP", "JPY", "INR", "KRW", "RUB", "TRY", "BRL", "VND",
-        "ILS", "THB", "UAH", "NGN", "CAD", "AUD", "NZD", "CHF", "HKD", "SGD", "美元"
+        "ILS", "THB", "UAH", "NGN", "CAD", "AUD", "NZD", "CHF", "HKD", "SGD"
     }
 
     # If it's already a valid ISO currency code
@@ -96,7 +96,8 @@ def resolve_currency(input_value: str) -> str:
         "NZ$": "NZD",
         "CHF": "CHF",
         "HK$": "HKD",
-        "SGD": "SGD"
+        "SGD": "SGD",
+        "美元": "USD",
     }
 
     return symbol_map.get(input_value, input_value.upper())

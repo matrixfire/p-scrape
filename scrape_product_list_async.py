@@ -62,8 +62,8 @@ def init_mongo_scraped() -> Optional[Collection]:
 
 def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> None:
     for product in products:
-        if collection.find_one({"product_id": product["product_id"]}):
-            logger.warning(f"Already exists: {product['product_id']}")
+        if collection.find_one({"pid": product["pid"]}):
+            logger.warning(f"Already exists: {product['pid']}")
         else:
             collection.insert_one(product)
             logger.info(f"Inserted: {product['name']}")
@@ -91,7 +91,34 @@ async def extract_table_items(desc_elem: ElementHandle) -> Dict[str, str]:
     return result
 
 
+def enrich_variants_with_product_id(product: dict) -> dict:
+    """
+    Enrich each variant in the 'variants' list with a custom 'product_id',
+    and remove the outer 'product_id' key from the product dictionary.
+
+    Args:
+        product (dict): Original product dictionary with a 'variants' list and top-level 'product_id'.
+
+    Returns:
+        dict: Modified dictionary with enriched variants and no outer 'product_id'.
+    """
+    if "variants" in product and isinstance(product["variants"], list):
+        for variant in product["variants"]:
+            sku = variant.get("sku", "")
+            variant_key = variant.get("variant_key", "")
+            top_product_id = product.get("product_id", "")
+            # Construct the new product_id for the variant
+            variant["product_id"] = f"{sku}_{top_product_id}_{variant_key}"
+
+    # Remove the outer 'product_id'
+    product["pid"] = product["product_id"]
+    product.pop("product_id", None)
+
+    return product
+
+
 async def extract_product_data(card) -> Optional[Dict[str, Any]]:
+    ''' From list page, getting each product card's data '''
     try:
         a_tag = await card.query_selector("a.productCard--nLiHk")
         name = (await (await a_tag.query_selector("div[class*='name']")).inner_text()).strip() if a_tag and await a_tag.query_selector("div[class*='name']") else None
@@ -197,6 +224,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                 variant_price = item.get("sellPrice")
                 variant_weight = item.get("weight")
                 variant_img = item.get("image").encode('utf-8').decode('unicode_escape')
+                variant_key = item.get("variantKey", "")
 
                 if sku:
                     inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
@@ -211,6 +239,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                         "weight": variant_weight,
                         "weight_unit": "g",
                         "variant_image": variant_img,
+                        "variant_key": variant_key,
                     }
                     # print(variant_details)
                     variants.append(variant_details)
@@ -293,7 +322,7 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
         for page_num in range(1, num_pages + 1):
             url = f"{base_url}?pageNum={page_num}"
             logger.info(f"--- Scraping page {page_num}: {url} ---")
-            products = await scrape_single_product_list_page(page, url)
+            products = await scrape_single_product_list_page(page, url) # list of product info 1
             # For each product, scrape its detail page and add the info concurrently
             detail_tasks = []
             for product in products:
@@ -301,7 +330,7 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
                     detail_tasks.append(scrape_product_detail_page(context, product['product_url'], semaphore))
                 else:
                     detail_tasks.append(asyncio.sleep(0, result=None))
-            detail_infos = await asyncio.gather(*detail_tasks)
+            detail_infos = await asyncio.gather(*detail_tasks) # list of product info 2
             for product, detail_info in zip(products, detail_infos):
                 # product['detail_info'] = detail_info[:20] if detail_info else None
                 product.update(detail_info)
@@ -310,6 +339,7 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
                 #     f"{json.dumps(product, indent=2, ensure_ascii=False)}\n"
                 #     "======================================\n"
                 # )
+            products = list(map(enrich_variants_with_product_id, products))
             all_products.extend(products)
             # Add random sleep to minimize anti-scraping detection
             if page_num < num_pages:
@@ -321,7 +351,7 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
 
 
 if __name__ == "__main__":
-    all_products = asyncio.run(scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=2, max_concurrent_details=3))
+    all_products = asyncio.run(scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=1, max_concurrent_details=5))
     logger.info(f"Total products scraped: {len(all_products)}")
     # for product in all_products:
     #     logger.info(product)
