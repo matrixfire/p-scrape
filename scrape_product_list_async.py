@@ -5,7 +5,7 @@ import asyncio
 import logging
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
-from cj_login import login_and_get_context
+from cj_login import login_and_get_context, nonlogin_and_get_context
 from config import get_scraped_db_config
 from pymongo.collection import Collection
 from pymongo import MongoClient, errors
@@ -346,7 +346,7 @@ def build_paginated_url(base_url: str, page_num: int) -> str:
 async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurrent_details: int = 3) -> List[Dict[str, Any]]:
     country = get_country_from_url(base_url)
     async with async_playwright() as playwright:
-        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
+        browser, context, page, _, _ = await nonlogin_and_get_context(playwright=playwright, headless=False)
         all_products = []
         semaphore = asyncio.Semaphore(max_concurrent_details)
         for page_num in range(1, num_pages + 1):
@@ -383,7 +383,7 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
 
 if __name__ == "__main__":
     all_products = asyncio.run(scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=1, max_concurrent_details=5))
-    logger.info(f"Total products scraped: {len(all_products)}")
+    logger.info(f"\nTotal products scraped: {len(all_products)}\n")
     # for product in all_products:
     #     logger.info(product)
     # Save to MongoDB
