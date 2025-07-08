@@ -101,3 +101,117 @@ def resolve_currency(input_value: str) -> str:
     }
 
     return symbol_map.get(input_value, input_value.upper())
+
+
+import pyperclip
+from bs4 import BeautifulSoup
+
+def clean_clipboard_html(mode="pretty", keep_attrs=None):
+    """
+    Cleans clipboard HTML content:
+    - If `keep_attrs` is provided (e.g. ["id", "class", "href"]), all other attributes will be removed.
+    - Otherwise, only `style` and `d` attributes are removed.
+    - Output format based on `mode`: "pretty", "compact", or "ultra".
+    """
+
+    # Step 1: Read from clipboard
+    html_text = pyperclip.paste()
+
+    # Step 2: Parse with BeautifulSoup
+    soup = BeautifulSoup(html_text, "html.parser")
+
+    # Step 3: Remove unwanted attributes
+    for tag in soup.find_all():
+        if keep_attrs is not None:
+            # Keep only attributes in keep_attrs list
+            tag.attrs = {k: v for k, v in tag.attrs.items() if k in keep_attrs}
+        else:
+            # Default: remove style and d
+            tag.attrs.pop("style", None)
+            tag.attrs.pop("d", None)
+
+    # Step 4: Output formatting
+    if mode == "pretty":
+        cleaned_html = soup.prettify()
+    elif mode == "compact":
+        cleaned_html = str(soup)
+    elif mode == "ultra":
+        for elem in soup.descendants:
+            if elem.string and not elem.name:
+                elem.replace_with(elem.string.strip())
+        cleaned_html = str(soup)
+        cleaned_html = cleaned_html.replace('\n', '').replace('\r', '').replace('\t', '')
+    else:
+        raise ValueError("Invalid mode. Choose from: 'pretty', 'compact', 'ultra'")
+
+    # Step 5: Copy back to clipboard
+    pyperclip.copy(cleaned_html)
+
+    return cleaned_html
+
+
+
+def find_leaf_paths(tree, current_path=None):
+    if current_path is None:
+        current_path = []
+
+    paths = []
+
+    for category, subcategories in tree.items():
+        new_path = current_path + [category]
+        if not subcategories:  # It's a leaf node
+            paths.append("/".join(new_path))
+        else:
+            # Recurse into subcategories
+            paths.extend(find_leaf_paths(subcategories, new_path))
+
+    return paths
+
+
+from bs4 import BeautifulSoup
+
+from typing import List, Optional
+
+class CategoryNode:
+    def __init__(self, name: str, url: str) -> None:
+        self.name: str = name
+        self.url: str = url
+
+    def __str__(self) -> str:
+        return self.name
+
+def extract_category_paths(html: str) -> List[List[CategoryNode]]:
+    """Parses HTML and returns a list of paths (each path is a list of CategoryNode)"""
+    soup = BeautifulSoup(html, 'html.parser')
+    root_ul: Optional[BeautifulSoup] = soup.find('ul', class_='cate1-group')
+    result_paths: List[List[CategoryNode]] = []
+
+    def walk_list_items(node, path: List[CategoryNode]) -> None:
+        for li in node.find_all('li', recursive=False):
+            anchor = li.find('a')
+            if anchor:
+                name: str = anchor.get_text(strip=True)
+                url: str = anchor.get('href', '').strip()
+                new_node = CategoryNode(name, url)
+                new_path: List[CategoryNode] = path + [new_node]
+
+                sub_ul = li.find('ul')
+                if sub_ul:
+                    walk_list_items(sub_ul, new_path)
+                else:
+                    result_paths.append(new_path)
+
+    if root_ul:
+        walk_list_items(root_ul, [])
+
+    return result_paths
+
+
+
+# Example usage:
+if __name__ == "__main__":
+    # Keep only specific attributes, remove all others
+    attrs_to_keep = ["id", "class", "href"]
+    result = clean_clipboard_html(mode="ultra", keep_attrs=attrs_to_keep)
+    print("Cleaned HTML has been copied back to the clipboard.")
+    print(result)
