@@ -42,6 +42,7 @@ def transform_packaging_dimensions(input_dict: dict) -> dict:
 
 # PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
 PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-pet-supplies-l-2409110611570657700.html?pageNum=1&from=US"
+PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-security-protection-l-192C9D30-5FEA-4B67-B251-AF6E97678DFF.html"
 BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
 
 
@@ -342,15 +343,46 @@ def build_paginated_url(base_url: str, page_num: int) -> str:
     return new_url
 
 
+async def get_max_num_pages(page) -> int:
+    """
+    Extract the maximum number of pages from the product listing page.
+    Looks for: <div class="to-go"> ... <span>of N</span> ... </div>
+    Returns the integer N, or 1 if not found.
+    """
+    try:
+        # Wait for the pagination element to appear
+        await page.wait_for_selector('div.to-go span', timeout=5000)
+        spans = await page.query_selector_all('div.to-go span')
+        for span in spans:
+            text = (await span.inner_text()).strip()
+            print(f"TEXT FOUND: {text}")
+            # Look for 'of N' pattern
+            # Try to extract the last number in the text, regardless of language or prefix
+            numbers = re.findall(r'\d+', text)
+            match = None
+            if numbers:
+                match = re.match(r'.*', text)  # dummy match to keep logic below unchanged
+                match = type('obj', (object,), {'group': lambda self, x: numbers[-1]})()
+            if match:
+                return int(match.group(1))
+    except Exception as e:
+        logger.warning(f"Could not extract max num pages: {e}")
+    return 1
+
 @async_timed
-async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurrent_details: int = 3) -> List[Dict[str, Any]]:
-    country = get_country_from_url(base_url)
+async def scrape_multiple_pages(start_url: str, num_pages: int = 0, max_concurrent_details: int = 3) -> List[Dict[str, Any]]:
+    country = get_country_from_url(start_url)
     async with async_playwright() as playwright:
         browser, context, page, _, _ = await nonlogin_and_get_context(playwright=playwright, headless=False)
         all_products = []
         semaphore = asyncio.Semaphore(max_concurrent_details)
+        # Go to the first page to determine max num_pages if not provided
+        await page.goto(build_paginated_url(start_url, 1))
+        if num_pages <= 0:
+            num_pages = await get_max_num_pages(page)
+            logger.info(f"Detected max num_pages: {num_pages}")
         for page_num in range(1, num_pages + 1):
-            url = build_paginated_url(base_url, page_num)
+            url = build_paginated_url(start_url, page_num)
             logger.info(f"\n--- Scraping page {page_num}: {url} ---\n")
             products = await scrape_single_product_list_page(page, url) # list of product info 1
             # For each product, scrape its detail page and add the info concurrently
@@ -365,11 +397,6 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
                 if detail_info is not None:
                     product.update(detail_info)
                 product.update({"country": country})
-                # logger.info(
-                #     "\n========== Enriched product =========="
-                #     f"{json.dumps(product, indent=2, ensure_ascii=False)}\n"
-                #     "======================================\n"
-                # )
             products = list(map(enrich_variants_with_product_id, products))
             all_products.extend(products)
             # Add random sleep to minimize anti-scraping detection
@@ -382,7 +409,7 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
 
 
 if __name__ == "__main__":
-    all_products = asyncio.run(scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=1, max_concurrent_details=5))
+    all_products = asyncio.run(scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=0, max_concurrent_details=5))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
     # for product in all_products:
     #     logger.info(product)
