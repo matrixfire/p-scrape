@@ -168,32 +168,27 @@ def find_leaf_paths(tree, current_path=None):
     return paths
 
 
-from bs4 import BeautifulSoup
 
 from typing import List, Optional
+import pyperclip as p
+from bs4 import BeautifulSoup, Tag
 
-class CategoryNode:
-    def __init__(self, name: str, url: str) -> None:
-        self.name: str = name
-        self.url: str = url
+def extract_category_paths(soup: BeautifulSoup) -> List[List[dict]]:
+    """
+    Parses HTML and returns a list of paths (each path is a list of dicts with 'name' and 'url'),
+    following nested <ul class="cate1-group"><li><a>...</a><ul>...</ul></li> structure.
+    """
+    root_ul: Optional[Tag] = soup.find('ul', class_='cate1-group')
+    result_paths: List[List[dict]] = []
 
-    def __str__(self) -> str:
-        return self.name
-
-def extract_category_paths(html: str) -> List[List[CategoryNode]]:
-    """Parses HTML and returns a list of paths (each path is a list of CategoryNode)"""
-    soup = BeautifulSoup(html, 'html.parser')
-    root_ul: Optional[BeautifulSoup] = soup.find('ul', class_='cate1-group')
-    result_paths: List[List[CategoryNode]] = []
-
-    def walk_list_items(node, path: List[CategoryNode]) -> None:
+    def walk_list_items(node: Tag, path: List[dict]) -> None:
         for li in node.find_all('li', recursive=False):
             anchor = li.find('a')
             if anchor:
                 name: str = anchor.get_text(strip=True)
                 url: str = anchor.get('href', '').strip()
-                new_node = CategoryNode(name, url)
-                new_path: List[CategoryNode] = path + [new_node]
+                new_node = {"name": name, "url": url}
+                new_path = path + [new_node]
 
                 sub_ul = li.find('ul')
                 if sub_ul:
@@ -205,6 +200,17 @@ def extract_category_paths(html: str) -> List[List[CategoryNode]]:
         walk_list_items(root_ul, [])
 
     return result_paths
+
+# Example usage
+if __name__ == "__main__":
+    html = p.paste()
+    soup = BeautifulSoup(html, "html.parser")
+    paths = extract_category_paths(soup)
+
+    # Display extracted paths
+    for path in paths:
+        # print(" > ".join(str(node.url) for node in path))
+        print(f'{path[-1].name}, {path[-1].url}')
 
 
 
