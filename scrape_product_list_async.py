@@ -3,6 +3,7 @@ from pickle import DICT
 import random
 import asyncio
 import logging
+from unicodedata import category
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 from cj_login import login_and_get_context, nonlogin_and_get_context, extract_category_paths_from_page
@@ -14,10 +15,11 @@ from typing import List, Dict, Any, Optional
 
 from playwright.async_api import ElementHandle
 
-from utils import async_timed, resolve_currency
+from utils import async_timed, resolve_currency, extract_category_paths
 import re
 
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from bs4 import BeautifulSoup
 
 
 def transform_packaging_dimensions(input_dict: dict) -> dict:
@@ -365,6 +367,21 @@ async def get_max_num_pages(page) -> int:
     return 1
 
 
+async def get_categories_links(page):
+    html = await page.content()
+    soup = BeautifulSoup(html, 'html.parser')
+    title = soup.title.string.strip() if soup.title and soup.title.string else '(No title found)'
+    result_paths_ = extract_category_paths(soup)
+    # Save result_paths_ to a JSON file for inspection
+    with open("category_paths.json", "w", encoding="utf-8") as f:
+        json.dump(result_paths_, f, ensure_ascii=False, indent=2)
+    result_paths = [p[-1] for p in result_paths_]
+
+    categoris_links = [(obj["name"], urljoin(BASE_URL, obj["url"])) for obj in result_paths]
+    print(f"[BeautifulSoup] Page title: {title}, {categoris_links[0]}"+'\n'*10)
+    return categoris_links
+
+
 @async_timed
 async def scrape_multiple_pages(
     start_url: str,
@@ -372,6 +389,7 @@ async def scrape_multiple_pages(
     max_concurrent_details: int = 3,
     context=None,
     page=None,
+    category="general"
 ) -> List[Dict[str, Any]]:
     country = get_country_from_url(start_url)
     close_context = False
@@ -400,7 +418,7 @@ async def scrape_multiple_pages(
         for product, detail_info in zip(products, detail_infos):
             if detail_info is not None:
                 product.update(detail_info)
-            product.update({"country": country})
+            product.update({"country": country, "category": category})
         products = list(map(enrich_variants_with_product_id, products))
         all_products.extend(products)
         if page_num < num_pages:
@@ -416,15 +434,23 @@ async def scrape_multiple_pages(
 async def scrape_multiple_urls(urls, max_concurrent_details=3):
     async with async_playwright() as playwright:
         browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
+        categoris_links = await get_categories_links(page)
         all_results = []
-        for url in urls:
+        if len(urls) == 0:
+            urls = categoris_links
+        for url_obj in urls:
+            url = url_obj[-1]
+            category = url_obj[0]
             logger.info(f"\n=== Scraping URL: {url} ===\n")
+            await page.goto(url)
+            
             products = await scrape_multiple_pages(
                 url,
                 num_pages=0,
                 max_concurrent_details=max_concurrent_details,
                 context=context,
                 page=page,
+                category = category
             )
             all_results.extend(products)
         await browser.close()
@@ -432,9 +458,10 @@ async def scrape_multiple_urls(urls, max_concurrent_details=3):
 
 if __name__ == "__main__":
     urls = [
-        "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1",
-        "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html"
+        ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
+        ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
     ]
+    urls = []
     all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=5))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
     # for product in all_products:
