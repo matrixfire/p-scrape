@@ -46,3 +46,20 @@ async def login_and_get_context(playwright=None, headless=False):
         json.dump(cookies, f, ensure_ascii=False, indent=2)
     # Return browser, context, page, playwright, and close_playwright for further use
     return browser, context, page, playwright, close_playwright 
+
+
+
+async def nonlogin_and_get_context(playwright=None, headless=False):
+    close_playwright = False
+    if playwright is None:
+        playwright = await async_playwright().start()
+        close_playwright = True
+
+    browser = await playwright.chromium.launch(headless=headless)
+    context = await browser.new_context()
+    page = await context.new_page()
+    await page.goto("https://www.cjdropshipping.com/")
+    await page.wait_for_timeout(3000)  # Optional: give it time to load
+
+    # Return same structure as login function
+    return browser, context, page, playwright, close_playwright
