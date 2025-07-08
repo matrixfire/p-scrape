@@ -2,7 +2,8 @@ import logging
 from pymongo import MongoClient
 from config import get_scraped_db_config
 from utils import flatten_dict
-from mysqll3 import insertt, insertt_p
+
+from db_handler import insert_product_data, insert_stock_price
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
@@ -97,9 +98,9 @@ def map_flattened_to_lis_en(row):
                 mapped[k] = row.get(k)
     return mapped
 
-INSERT_MODE = 'stock'  # Options: 'product', 'stock', 'both'
+INSERT_MODE = 'both'  # Options: 'product', 'stock', 'both'
 
-# For insertt_p, map to lis_en2
+# For insert_stock_price, map to lis_en2
 LIS_EN2 = ['sku', 'id', 'stock', 'price', 'status', 'update_time']
 MONGO_TO_MYSQL_MAP_P = {
     'sku': 'sku',
@@ -107,7 +108,7 @@ MONGO_TO_MYSQL_MAP_P = {
     'factoryInventory': 'stock',
     'price': 'price',
     'status': 'status',
-    # 'update_time' will be set in insertt_p
+    # 'update_time' will be set in insert_stock_price
 }
 
 def map_flattened_to_lis_en2(row):
@@ -148,7 +149,7 @@ def main():
         if INSERT_MODE in ('product', 'both'):
             mapped = map_flattened_to_lis_en(row)
             try:
-                insertt(mapped)
+                insert_product_data(mapped)
                 logger.info(f"[product] Inserted row {i+1} into MySQL: {mapped.get('sku', mapped.get('id', 'N/A'))}")
                 success_count += 1
             except Exception as e:
@@ -157,7 +158,7 @@ def main():
         if INSERT_MODE in ('stock', 'both'):
             mapped_p = map_flattened_to_lis_en2(row)
             try:
-                insertt_p(mapped_p)
+                insert_stock_price(mapped_p)
                 logger.info(f"[stock] Inserted row {i+1} into MySQL: {mapped_p.get('sku', mapped_p.get('id', 'N/A'))}")
                 success_count_p += 1
             except Exception as e:
