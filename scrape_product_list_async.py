@@ -17,6 +17,8 @@ from playwright.async_api import ElementHandle
 from utils import async_timed, resolve_currency
 import re
 
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
 
 def transform_packaging_dimensions(input_dict: dict) -> dict:
     new_dict = {k: v for k, v in input_dict.items() if k != '包装尺寸'}
@@ -41,6 +43,20 @@ def transform_packaging_dimensions(input_dict: dict) -> dict:
 # PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
 PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-pet-supplies-l-2409110611570657700.html?pageNum=1&from=US"
 BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
+
+
+def get_country_from_url(url: str) -> str:
+    """
+    Parse the given URL and return the country from the 'from' query parameter.
+    If not present, return 'Global'.
+    """
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    country = query.get('from', [None])[0]
+    return country if country else "Global"
+
+# Example usage:
+COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
 
 # ========== Logging setup ==========
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
@@ -313,15 +329,29 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
         await asyncio.sleep(random.uniform(0.2, 0.6))
 
 
+def build_paginated_url(base_url: str, page_num: int) -> str:
+    """
+    Given a base_url, return a new URL with the pageNum parameter set to page_num.
+    If pageNum already exists, it will be replaced. Other query params are preserved.
+    """
+    parsed = urlparse(base_url)
+    query = parse_qs(parsed.query)
+    query['pageNum'] = [str(page_num)]
+    new_query = urlencode(query, doseq=True)
+    new_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+    return new_url
+
+
 @async_timed
 async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurrent_details: int = 3) -> List[Dict[str, Any]]:
+    country = get_country_from_url(base_url)
     async with async_playwright() as playwright:
         browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
         all_products = []
         semaphore = asyncio.Semaphore(max_concurrent_details)
         for page_num in range(1, num_pages + 1):
-            url = f"{base_url}?pageNum={page_num}"
-            logger.info(f"--- Scraping page {page_num}: {url} ---")
+            url = build_paginated_url(base_url, page_num)
+            logger.info(f"\n--- Scraping page {page_num}: {url} ---\n")
             products = await scrape_single_product_list_page(page, url) # list of product info 1
             # For each product, scrape its detail page and add the info concurrently
             detail_tasks = []
@@ -332,8 +362,9 @@ async def scrape_multiple_pages(base_url: str, num_pages: int = 2, max_concurren
                     detail_tasks.append(asyncio.sleep(0, result=None))
             detail_infos = await asyncio.gather(*detail_tasks) # list of product info 2
             for product, detail_info in zip(products, detail_infos):
-                # product['detail_info'] = detail_info[:20] if detail_info else None
-                product.update(detail_info)
+                if detail_info is not None:
+                    product.update(detail_info)
+                product.update({"country": country})
                 # logger.info(
                 #     "\n========== Enriched product =========="
                 #     f"{json.dumps(product, indent=2, ensure_ascii=False)}\n"
