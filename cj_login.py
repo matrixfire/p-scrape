@@ -1,6 +1,8 @@
 import json
 from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright
+from playwright.async_api import Page
+from typing import List, Optional
 
 def login_and_get_context(playwright=None, headless=False):
     # Optionally accept an existing playwright instance for reuse
@@ -33,6 +35,9 @@ async def login_and_get_context(playwright=None, headless=False):
     browser = await playwright.chromium.launch(headless=headless)
     context = await browser.new_context()
     page = await context.new_page()
+
+    # category_paths = await extract_category_paths_from_page(page)
+
     await page.goto("https://www.cjdropshipping.com/")
     await page.click('div.loginBtn--DtPtb a')
     await page.wait_for_selector('form[name="loginForm"]')
@@ -63,3 +68,56 @@ async def nonlogin_and_get_context(playwright=None, headless=False):
 
     # Return same structure as login function
     return browser, context, page, playwright, close_playwright
+
+
+
+class CategoryNode:
+    def __init__(self, name: str, url: str) -> None:
+        self.name: str = name
+        self.url: str = url
+
+    def __str__(self) -> str:
+        return self.name
+
+
+async def extract_category_paths_from_page(page: Page) -> List[List[CategoryNode]]:
+    """Extracts category paths from a page using Playwright's async API."""
+    result_paths: List[List[CategoryNode]] = []
+    
+    # Check if root UL exists
+    root_ul = page.locator('ul.cate1-group').first
+    if not await root_ul.is_visible():
+        return result_paths
+
+    # Stack for DFS: (locator to current UL, current path)
+    stack = [(root_ul, [])]
+    
+    while stack:
+        current_ul, current_path = stack.pop()
+        
+        # Process each direct child LI
+        li_locators = await current_ul.locator(':scope > li').all()
+        for li in reversed(li_locators):  # Reverse to maintain left-to-right order
+            # Get anchor element
+            anchor = li.locator('a').first
+            
+            # Skip if no anchor found
+            if not await anchor.is_visible():
+                continue
+                
+            # Extract category info
+            name = (await anchor.text_content() or '').strip()
+            url = (await anchor.get_attribute('href') or '').strip()
+            new_node = CategoryNode(name, url)
+            new_path = current_path + [new_node]
+            
+            # Check for child UL
+            child_ul = li.locator('ul').first
+            if await child_ul.is_visible():
+                # Add child UL to stack for processing
+                stack.append((child_ul, new_path))
+            else:
+                # Add leaf path to results
+                result_paths.append(new_path)
+    
+    return result_paths

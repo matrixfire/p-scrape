@@ -5,7 +5,7 @@ import asyncio
 import logging
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
-from cj_login import login_and_get_context, nonlogin_and_get_context
+from cj_login import login_and_get_context, nonlogin_and_get_context, extract_category_paths_from_page
 from config import get_scraped_db_config
 from pymongo.collection import Collection
 from pymongo import MongoClient, errors
@@ -369,11 +369,12 @@ async def get_max_num_pages(page) -> int:
         logger.warning(f"Could not extract max num pages: {e}")
     return 1
 
+
 @async_timed
 async def scrape_multiple_pages(start_url: str, num_pages: int = 0, max_concurrent_details: int = 3) -> List[Dict[str, Any]]:
     country = get_country_from_url(start_url)
     async with async_playwright() as playwright:
-        browser, context, page, _, _ = await nonlogin_and_get_context(playwright=playwright, headless=False)
+        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
         all_products = []
         semaphore = asyncio.Semaphore(max_concurrent_details)
         # Go to the first page to determine max num_pages if not provided
