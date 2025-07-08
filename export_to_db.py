@@ -101,7 +101,7 @@ def map_flattened_to_lis_en(row):
 INSERT_MODE = 'stock'  # Options: 'product', 'stock', 'both'
 
 # For insert_stock_price, map to lis_en2
-LIS_EN2 = ['sku', 'id', 'stock', 'price', 'status', 'update_time']
+LIS_EN2 = ['sku', 'id', 'stock', 'price', 'status', 'update_time', 'stock2', 'currency', 'country']
 MONGO_TO_MYSQL_MAP_P = {
     'sku': 'sku',
     'product_id': 'id',
@@ -109,7 +109,8 @@ MONGO_TO_MYSQL_MAP_P = {
     'factoryInventory': 'stock',
     'price': 'price',
     'status': 'status',
-    'currency': 'currency'
+    'currency': 'currency',
+    'country': 'country'
     # 'update_time' will be set in insert_stock_price
 }
 
