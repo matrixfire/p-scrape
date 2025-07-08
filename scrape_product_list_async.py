@@ -356,61 +356,86 @@ async def get_max_num_pages(page) -> int:
         for span in spans:
             text = (await span.inner_text()).strip()
             print(f"TEXT FOUND: {text}")
-            # Look for 'of N' pattern
             # Try to extract the last number in the text, regardless of language or prefix
             numbers = re.findall(r'\d+', text)
-            match = None
             if numbers:
-                match = re.match(r'.*', text)  # dummy match to keep logic below unchanged
-                match = type('obj', (object,), {'group': lambda self, x: numbers[-1]})()
-            if match:
-                return int(match.group(1))
+                return int(numbers[-1])
     except Exception as e:
         logger.warning(f"Could not extract max num pages: {e}")
     return 1
 
 
 @async_timed
-async def scrape_multiple_pages(start_url: str, num_pages: int = 0, max_concurrent_details: int = 3) -> List[Dict[str, Any]]:
+async def scrape_multiple_pages(
+    start_url: str,
+    num_pages: int = 0,
+    max_concurrent_details: int = 3,
+    context=None,
+    page=None,
+) -> List[Dict[str, Any]]:
     country = get_country_from_url(start_url)
+    close_context = False
+    if context is None or page is None:
+        playwright = await async_playwright().start()
+        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
+        close_context = True
+
+    all_products = []
+    semaphore = asyncio.Semaphore(max_concurrent_details)
+    await page.goto(build_paginated_url(start_url, 1))
+    if num_pages <= 0:
+        num_pages = await get_max_num_pages(page)
+        logger.info(f"Detected max num_pages: {num_pages}")
+    for page_num in range(1, num_pages + 1):
+        url = build_paginated_url(start_url, page_num)
+        logger.info(f"\n--- Scraping page {page_num}: {url} ---\n")
+        products = await scrape_single_product_list_page(page, url)
+        detail_tasks = []
+        for product in products:
+            if product.get('product_url'):
+                detail_tasks.append(scrape_product_detail_page(context, product['product_url'], semaphore))
+            else:
+                detail_tasks.append(asyncio.sleep(0, result=None))
+        detail_infos = await asyncio.gather(*detail_tasks)
+        for product, detail_info in zip(products, detail_infos):
+            if detail_info is not None:
+                product.update(detail_info)
+            product.update({"country": country})
+        products = list(map(enrich_variants_with_product_id, products))
+        all_products.extend(products)
+        if page_num < num_pages:
+            sleep_time = random.uniform(1.5, 4.0)
+            logger.info(f"Sleeping for {sleep_time:.2f} seconds before next page...")
+            await asyncio.sleep(sleep_time)
+    if close_context:
+        await context.close()
+        await browser.close()
+    return all_products
+
+
+async def scrape_multiple_urls(urls, max_concurrent_details=3):
     async with async_playwright() as playwright:
         browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
-        all_products = []
-        semaphore = asyncio.Semaphore(max_concurrent_details)
-        # Go to the first page to determine max num_pages if not provided
-        await page.goto(build_paginated_url(start_url, 1))
-        if num_pages <= 0:
-            num_pages = await get_max_num_pages(page)
-            logger.info(f"Detected max num_pages: {num_pages}")
-        for page_num in range(1, num_pages + 1):
-            url = build_paginated_url(start_url, page_num)
-            logger.info(f"\n--- Scraping page {page_num}: {url} ---\n")
-            products = await scrape_single_product_list_page(page, url) # list of product info 1
-            # For each product, scrape its detail page and add the info concurrently
-            detail_tasks = []
-            for product in products:
-                if product.get('product_url'):
-                    detail_tasks.append(scrape_product_detail_page(context, product['product_url'], semaphore))
-                else:
-                    detail_tasks.append(asyncio.sleep(0, result=None))
-            detail_infos = await asyncio.gather(*detail_tasks) # list of product info 2
-            for product, detail_info in zip(products, detail_infos):
-                if detail_info is not None:
-                    product.update(detail_info)
-                product.update({"country": country})
-            products = list(map(enrich_variants_with_product_id, products))
-            all_products.extend(products)
-            # Add random sleep to minimize anti-scraping detection
-            if page_num < num_pages:
-                sleep_time = random.uniform(1.5, 4.0)
-                logger.info(f"Sleeping for {sleep_time:.2f} seconds before next page...")
-                await asyncio.sleep(sleep_time)
+        all_results = []
+        for url in urls:
+            logger.info(f"\n=== Scraping URL: {url} ===\n")
+            products = await scrape_multiple_pages(
+                url,
+                num_pages=0,
+                max_concurrent_details=max_concurrent_details,
+                context=context,
+                page=page,
+            )
+            all_results.extend(products)
         await browser.close()
-        return all_products
-
+        return all_results
 
 if __name__ == "__main__":
-    all_products = asyncio.run(scrape_multiple_pages(PRODUCT_LIST_URL, num_pages=0, max_concurrent_details=5))
+    urls = [
+        "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1",
+        "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html"
+    ]
+    all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=5))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
     # for product in all_products:
     #     logger.info(product)
