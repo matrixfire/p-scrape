@@ -368,6 +368,7 @@ async def get_max_num_pages(page) -> int:
 
 
 async def get_categories_links(page):
+    await page.wait_for_selector('li.cate2-item', timeout=15000) # later added
     html = await page.content()
     soup = BeautifulSoup(html, 'html.parser')
     title = soup.title.string.strip() if soup.title and soup.title.string else '(No title found)'
