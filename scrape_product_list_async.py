@@ -367,21 +367,22 @@ async def get_max_num_pages(page) -> int:
     return 1
 
 
-async def get_categories_links(page):
+from typing import Any, List, Tuple
+
+async def get_categories_links(page: Any) -> List[Tuple[str, str]]:
     await page.wait_for_selector('li.cate2-item', timeout=15000) # later added
     html = await page.content()
     soup = BeautifulSoup(html, 'html.parser')
     title = soup.title.string.strip() if soup.title and soup.title.string else '(No title found)'
-    result_paths_ = extract_category_paths(soup)
+    result_paths_: List[List[dict]] = extract_category_paths(soup)
     print(len(result_paths_), '\n'*10)
     # Save result_paths_ to a JSON file for inspection
     with open("category_paths.json", "w", encoding="utf-8") as f:
         json.dump(result_paths_, f, ensure_ascii=False, indent=2)
     # result_paths = [p[-1] for p in result_paths_]
-    real_cared_ones = [lt[-1] for lt in result_paths_]
+    real_cared_ones: List[dict] = [lt[-1] for lt in result_paths_]
 
-
-    categoris_links = [(obj["name"], urljoin(BASE_URL, obj["url"])) for obj in real_cared_ones]
+    categoris_links: List[Tuple[str, str]] = [(obj["name"], urljoin(BASE_URL, obj["url"])) for obj in real_cared_ones]
     print(f"[BeautifulSoup] Page title: {title}, {categoris_links[0]}"+'\n'*10)
     return categoris_links
 
@@ -438,9 +439,10 @@ async def scrape_multiple_pages(
 async def scrape_multiple_urls(urls, max_concurrent_details=3):
     async with async_playwright() as playwright:
         browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
-        categoris_links = await get_categories_links(page)
+        
         all_results = []
         if len(urls) == 0:
+            categoris_links = await get_categories_links(page)
             urls = categoris_links
         for url_obj in urls:
             url = url_obj[-1]
@@ -465,7 +467,7 @@ if __name__ == "__main__":
         ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
         ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
     ]
-    urls = []
+    # urls = []
     all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=5))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
     # for product in all_products:
