@@ -201,6 +201,40 @@ def extract_category_paths(soup: BeautifulSoup) -> List[List[dict]]:
 
     return result_paths
 
+
+
+import os
+import random
+
+def save_log(content: str, prefix: str = "LOG-", folder: str = ".") -> str:
+    """
+    Saves the given content to a file in the specified folder.
+    The filename is generated using the prefix and a random number between 100 and 999.
+
+    Args:
+        content (str): The content to write to the file.
+        prefix (str): The prefix for the filename. Default is 'LOG-'.
+        folder (str): The folder to save the file in. Default is current folder.
+
+    Returns:
+        str: The full path to the saved file.
+    """
+    random_num = random.randint(100, 999)
+    filename = f"{prefix}{random_num}.txt"
+    file_path = os.path.join(folder, filename)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return file_path
+
+
+
+
+
+
+
+
 # Example usage
 if __name__ == "__main__":
     html = p.paste()
@@ -210,7 +244,7 @@ if __name__ == "__main__":
     # Display extracted paths
     for path in paths:
         # print(" > ".join(str(node.url) for node in path))
-        print(f'{path[-1].name}, {path[-1].url}')
+        print(f'{path[-1]}, {path[-1]}')
 
 
 
@@ -221,3 +255,7 @@ if __name__ == "__main__":
     result = clean_clipboard_html(mode="ultra", keep_attrs=attrs_to_keep)
     print("Cleaned HTML has been copied back to the clipboard.")
     print(result)
+
+
+
+ 
