@@ -6,3 +6,5 @@ python-dotenv
 pymongo
 pandas
 openpyxl
+mysql-connector-python
+pyperclip

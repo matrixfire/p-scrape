@@ -11,15 +11,26 @@ from config import get_scraped_db_config
 from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
-
-
 from playwright.async_api import ElementHandle
-
 from utils import async_timed, resolve_currency, extract_category_paths, save_log
 import re
-
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
+from typing import Any, List, Tuple
+
+# Example usage:
+
+
+# ========== Logging setup ==========
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
+
+
+
+# PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
+PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-pet-supplies-l-2409110611570657700.html?pageNum=1&from=US"
+PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-security-protection-l-192C9D30-5FEA-4B67-B251-AF6E97678DFF.html"
+BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
 
 
 def transform_packaging_dimensions(input_dict: dict) -> dict:
@@ -42,12 +53,6 @@ def transform_packaging_dimensions(input_dict: dict) -> dict:
     return new_dict
 
 
-# PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
-PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-pet-supplies-l-2409110611570657700.html?pageNum=1&from=US"
-PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-security-protection-l-192C9D30-5FEA-4B67-B251-AF6E97678DFF.html"
-BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
-
-
 def get_country_from_url(url: str) -> str:
     """
     Parse the given URL and return the country from the 'from' query parameter.
@@ -58,12 +63,6 @@ def get_country_from_url(url: str) -> str:
     country = query.get('from', [None])[0]
     return country if country else "Global"
 
-# Example usage:
-COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-
-# ========== Logging setup ==========
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
-logger = logging.getLogger(__name__)
 
 # ========== MongoDB helpers ==========
 def init_mongo_scraped() -> Optional[Collection]:
@@ -367,10 +366,17 @@ async def get_max_num_pages(page) -> int:
     return 1
 
 
-from typing import Any, List, Tuple
-
 async def get_categories_links(page: Any) -> List[Tuple[str, str]]:
-    await page.wait_for_selector('li.cate2-item', timeout=15000) # later added
+    # First, hover over the ul.cate1-group element to trigger category fetching
+    try:
+        await page.wait_for_selector('ul.cate1-group', timeout=10000)
+        await page.hover('ul.cate1-group')
+        # Add a small delay to allow the hover to trigger the data fetching
+        await page.wait_for_timeout(1000)
+    except Exception as e:
+        logger.warning(f"Could not hover over ul.cate1-group: {e}")
+    
+    # await page.wait_for_selector('li.cate2-item', timeout=5000) # later added
     html = await page.content()
     soup = BeautifulSoup(html, 'html.parser')
     title = soup.title.string.strip() if soup.title and soup.title.string else '(No title found)'
@@ -463,11 +469,12 @@ async def scrape_multiple_urls(urls, max_concurrent_details=3):
         return all_results
 
 if __name__ == "__main__":
+    COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
     urls = [
         ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
         ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
     ]
-    # urls = []
+    urls = []
     all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=5))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
     # for product in all_products:
