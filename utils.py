@@ -229,7 +229,23 @@ def save_log(content: str, prefix: str = "LOG-", folder: str = ".") -> str:
     return file_path
 
 
+import json
+from typing import List, Tuple
 
+def load_name_url_tuples(filename: str) -> List[Tuple[str, str]]:
+    """
+    Loads JSON data from the given file and converts it into a list of (name, url) tuples.
+
+    Args:
+        filename (str): Path to the JSON file.
+
+    Returns:
+        List[Tuple[str, str]]: A list of (name, url) tuples.
+    """
+    with open(filename, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    return [(item['name'], item['url']) for item in data]
 
 
 

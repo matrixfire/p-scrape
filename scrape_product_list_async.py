@@ -12,7 +12,7 @@ from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
 from playwright.async_api import ElementHandle
-from utils import async_timed, resolve_currency, extract_category_paths, save_log
+from utils import async_timed, resolve_currency, extract_category_paths, save_log, load_name_url_tuples
 import re
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
@@ -62,6 +62,24 @@ def get_country_from_url(url: str) -> str:
     query = parse_qs(parsed.query)
     country = query.get('from', [None])[0]
     return country if country else "Global"
+
+
+def set_country_in_url(url: str, country: str) -> str:
+    """
+    Set or update the 'from' query parameter in the given URL with the specified country.
+
+    """
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+
+    # Set or update the 'from' parameter
+    query['from'] = [country]
+
+    # Encode query parameters back into URL
+    new_query = urlencode(query, doseq=True)
+    new_parsed = parsed._replace(query=new_query)
+    return urlunparse(new_parsed)
+
 
 
 # ========== MongoDB helpers ==========
@@ -470,12 +488,17 @@ async def scrape_multiple_urls(urls, max_concurrent_details=3):
 
 if __name__ == "__main__":
     COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-    urls = [
-        ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
-        ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
-    ]
+    country = "global"
+    # urls = [
+    #     ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
+    #     ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
+    # ]
     urls = []
-    all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=5))
+    urls = load_name_url_tuples('extract_urls4.json')
+    urls = [(t[0],t[1]) for t in urls]
+
+    print(urls)
+    all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=3))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
     # for product in all_products:
     #     logger.info(product)
