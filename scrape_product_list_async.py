@@ -15,7 +15,7 @@ from typing import List, Dict, Any, Optional
 
 from playwright.async_api import ElementHandle
 
-from utils import async_timed, resolve_currency, extract_category_paths
+from utils import async_timed, resolve_currency, extract_category_paths, save_log
 import re
 
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
@@ -372,12 +372,15 @@ async def get_categories_links(page):
     soup = BeautifulSoup(html, 'html.parser')
     title = soup.title.string.strip() if soup.title and soup.title.string else '(No title found)'
     result_paths_ = extract_category_paths(soup)
+    print(len(result_paths_), '\n'*10)
     # Save result_paths_ to a JSON file for inspection
     with open("category_paths.json", "w", encoding="utf-8") as f:
         json.dump(result_paths_, f, ensure_ascii=False, indent=2)
-    result_paths = [p[-1] for p in result_paths_]
+    # result_paths = [p[-1] for p in result_paths_]
+    real_cared_ones = [lt[-1] for lt in result_paths_]
 
-    categoris_links = [(obj["name"], urljoin(BASE_URL, obj["url"])) for obj in result_paths]
+
+    categoris_links = [(obj["name"], urljoin(BASE_URL, obj["url"])) for obj in real_cared_ones]
     print(f"[BeautifulSoup] Page title: {title}, {categoris_links[0]}"+'\n'*10)
     return categoris_links
 
