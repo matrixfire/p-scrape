@@ -72,7 +72,9 @@ MONGO_TO_MYSQL_MAP = {
     # 'bg_img' will use image_url as fallback
 }
 
-LIS_EN = ['sku','id','default_product_name_en','multi_product_name_es','default_product_desc_en','multi_product_desc_es','main_img','bg_img','weight','weight_unit','length','width','height','length_unit','color','attribute','category']
+LIS_EN = ['sku','id','default_product_name_en','multi_product_name_es',
+'default_product_desc_en','multi_product_desc_es','main_img','bg_img','weight',
+'weight_unit','length','width','height','length_unit','color','attribute','category']
 
 def build_attribute(row):
     # Combine 产品属性 and 材料 keys if present
@@ -111,7 +113,9 @@ INSERT_MODE = 'both'  # Options: 'product', 'stock', 'both'
 
 
 # For insert_stock_price, map to lis_en2
-LIS_EN2 = ['sku', 'id', 'stock', 'price', 'status', 'update_time', 'stock2', 'currency', 'country']
+LIS_EN2 = ['sku', 'id', 'stock', 'price', 'status', 
+'update_time', 'stock2', 'currency', 'country',
+'color']
 
 
 MONGO_TO_MYSQL_MAP_P = {

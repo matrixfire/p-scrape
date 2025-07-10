@@ -6,6 +6,7 @@ import logging
 from unicodedata import category
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
+import Levenshtein_get_color
 from cj_login import login_and_get_context, nonlogin_and_get_context, extract_category_paths_from_page
 from config import get_scraped_db_config
 from pymongo.collection import Collection
@@ -17,6 +18,7 @@ import re
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
 from typing import Any, List, Tuple
+from Levenshtein_get_color import get_color_name
 
 # Example usage:
 
@@ -230,9 +232,14 @@ async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]
             products.append(data)
     return products
 
+
 def getting_color(s):
     first_part = s.split("-")[0].lower()
-    return first_part if len(first_part) > 1 else "multicolor"
+    color_name = get_color_name(first_part)
+    if color_name == "NOT FOUND":
+        color_name = "多色"
+
+    return color_name
 
 
 
