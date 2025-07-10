@@ -5,6 +5,95 @@ from PIL import Image
 import pytesseract
 
 
+
+from playwright.async_api import async_playwright
+import asyncio
+
+# Your captcha-solving function (dummy example)
+async def solve_captcha_from_src(src_url: str) -> str:
+    # Download image and run OCR or any logic you use
+    print(f"Solving captcha from: {src_url}")
+
+    save_base64_image(src_url, "captcha.png")
+    captcha_txt = get_captcha_text("captcha.png")
+    # Return dummy solution
+    print(captcha_txt)
+    return captcha_txt
+
+async def handle_captcha(page):
+    while True:
+        # Check if captcha is present
+        captcha_div = await page.query_selector("div.commit-main")
+        if not captcha_div:
+            break  # No captcha, continue with rest of scraping
+
+        print("Captcha detected. Handling...")
+
+        # Step 1: Click "Next" in #step1
+        step1_next_button = await page.query_selector("#step1 button")
+        if step1_next_button:
+            await step1_next_button.click()
+            await page.wait_for_timeout(1000)  # wait briefly for step2 to load
+
+        # Step 2: Wait for image to load in #step2
+        captcha_img = await page.wait_for_selector("#step2 img#verifyCode", timeout=5000)
+        src = await captcha_img.get_attribute("src")
+        if not src:
+            print("Captcha image src not found.")
+            break
+
+        # Step 3: Solve captcha
+        solution = await solve_captcha_from_src(src)
+
+        # Step 4: Fill in captcha and submit
+        await page.fill("#inputVerification", solution)
+        await page.click("#submit")
+
+        # Step 4.5: If an alert popup appears, close it
+        try:
+            close_btn = await page.query_selector('div.alert-model-foot button.alert-model-foot-button')
+            if close_btn:
+                await close_btn.click()
+                await page.wait_for_timeout(500)  # wait briefly after closing
+        except Exception:
+            pass  # ignore errors if the popup is not present
+
+        # Step 5: Check again if captcha still exists
+        await page.wait_for_timeout(2000)  # wait for possible transition
+        still_there = await page.query_selector("div.commit-main")
+        if not still_there:
+            print("Captcha solved successfully.")
+            break
+        else:
+            print("Captcha still present. Refreshing page and retrying...")
+            await page.reload()
+            await page.wait_for_timeout(1500)  # wait for reload
+
+# async def main():
+#     async with async_playwright() as pw:
+#         browser = await pw.chromium.launch(headless=False)
+#         context = await browser.new_context()
+#         page = await context.new_page()
+
+#         await page.goto("https://your-target-site.com")
+
+#         await handle_captcha(page)
+
+#         # Proceed with scraping
+#         print("Continue with scraping...")
+
+#         await browser.close()
+
+# asyncio.run(main())
+
+
+
+
+
+
+
+
+
 def load_image_pil(path: str) -> np.ndarray:
     """Load an image using PIL to handle Unicode paths, and convert to OpenCV BGR format."""
     img_pil = Image.open(path)
@@ -38,7 +127,7 @@ def extract_text(img: np.ndarray) -> str:
     return pytesseract.image_to_string(img, config=config).strip()
 
 
-def get_captcha_text(image_path):
+def get_captcha_text(image_path: str) -> str:
     img = load_image_pil(image_path)
     processed = preprocess_image(img)
     return extract_text(processed)

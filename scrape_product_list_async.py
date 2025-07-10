@@ -19,7 +19,7 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
 from typing import Any, List, Tuple
 from Levenshtein_get_color import get_color_name
-
+from ocr_captcha import handle_captcha
 # Example usage:
 
 
