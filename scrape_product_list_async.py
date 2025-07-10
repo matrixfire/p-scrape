@@ -230,6 +230,11 @@ async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]
             products.append(data)
     return products
 
+def getting_color(s):
+    first_part = s.split("-")[0].lower()
+    return first_part if len(first_part) > 1 else "multicolor"
+
+
 
 async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str, Any], product_url: str):
     try:
@@ -270,6 +275,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                 variant_img = item.get("image").encode('utf-8').decode('unicode_escape')
                 variant_key = item.get("variantKey", "")
 
+
                 if sku:
                     inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
                     variant_details = {
@@ -284,7 +290,8 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                         "weight_unit": "g",
                         "variant_image": variant_img,
                         "variant_key": variant_key,
-                        "bg_img": ','.join(all_image_links)
+                        "bg_img": ','.join(all_image_links),
+                        "color": getting_color(variant_key),
                     }
                     # print(variant_details)
                     variants.append(variant_details)
@@ -497,14 +504,14 @@ async def scrape_multiple_urls(urls, max_concurrent_details=3):
 
 if __name__ == "__main__":
     COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-    country = "global"
+    country = "US"
     urls = [
-        ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
-        # ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
+        # ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
+        ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
     ]
     # urls = []
     # urls = load_name_url_tuples('extract_urls4.json')
-    urls = [(t[0],t[1]) for t in urls]
+    urls = [(t[0], set_country_in_url(t[1], country)) for t in urls]
 
     print(urls)
     all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=3))
