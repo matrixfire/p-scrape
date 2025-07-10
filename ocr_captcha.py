@@ -43,6 +43,48 @@ def get_captcha_text(image_path):
     processed = preprocess_image(img)
     return extract_text(processed)
 
+
+
+
+###############
+
+
+import base64
+
+def save_base64_image(data_url: str, filename: str = "output.png") -> None:
+    """
+    Save a base64-encoded image (data URL) to a PNG file.
+
+    Parameters:
+    - data_url (str): The full data URL string starting with 'data:image/...'.
+    - filename (str): The output filename to save the image to (default: output.png).
+    """
+    try:
+        header, base64_data = data_url.split(',', 1)
+        with open(filename, 'wb') as f:
+            f.write(base64.b64decode(base64_data))
+        print(f"[✓] Image saved to: {filename}")
+    except Exception as e:
+        print(f"[✗] Failed to save image: {e}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def main():
     image_path = "无标题.png"  # Or any filename with non-ASCII chars
     img = load_image_pil(image_path)
