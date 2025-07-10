@@ -510,7 +510,7 @@ if __name__ == "__main__":
         ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
     ]
     # urls = []
-    # urls = load_name_url_tuples('extract_urls4.json')
+    urls = load_name_url_tuples('extract_urls.json')
     urls = [(t[0], set_country_in_url(t[1], country)) for t in urls]
 
     print(urls)
