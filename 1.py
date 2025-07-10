@@ -81,7 +81,7 @@ def get_col(col):
         return res
     # x = get_col('Cream')
     # print(x)
-col = 'blue'
+col = '象牙色'
 if col in en_col :
     col = ch_col[en_col.index(col)]
 elif col in dic_col:
