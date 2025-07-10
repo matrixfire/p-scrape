@@ -34,6 +34,10 @@ async def login_and_get_context(playwright=None, headless=False):
         close_playwright = True
     browser = await playwright.chromium.launch(headless=headless)
     context = await browser.new_context()
+    # Load cookies
+    with open("cj_cookies.json", "r") as f:
+        cookies = json.load(f)
+        await context.add_cookies(cookies)
     page = await context.new_page()
 
     # category_paths = await extract_category_paths_from_page(page)
@@ -46,6 +50,8 @@ async def login_and_get_context(playwright=None, headless=False):
     await page.press('input[placeholder="密码"]', 'Enter')
     await page.wait_for_timeout(5000)
     # Save cookies if needed
+    import asyncio
+    await asyncio.sleep(5)
     cookies = await context.cookies()
     with open('cj_cookies.json', 'w', encoding='utf-8') as f:
         json.dump(cookies, f, ensure_ascii=False, indent=2)
