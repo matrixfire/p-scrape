@@ -43,12 +43,17 @@ async def login_and_get_context(playwright=None, headless=False):
     # category_paths = await extract_category_paths_from_page(page)
 
     await page.goto("https://www.cjdropshipping.com/")
-    await page.click('div.loginBtn--DtPtb a')
-    await page.wait_for_selector('form[name="loginForm"]')
-    await page.fill('input[placeholder="用户名/电子邮件地址"]', 'tychan@163.com')
-    await page.fill('input[placeholder="密码"]', 'Kumai666888!')
-    await page.press('input[placeholder="密码"]', 'Enter')
-    await page.wait_for_timeout(5000)
+
+    login_btn = await page.query_selector('div.loginBtn--DtPtb a')
+    if login_btn is not None:
+        await page.click('div.loginBtn--DtPtb a')
+        await page.wait_for_selector('form[name="loginForm"]')
+        await page.fill('input[placeholder="用户名/电子邮件地址"]', 'tychan@163.com')
+        await page.fill('input[placeholder="密码"]', 'Kumai666888!')
+        await page.press('input[placeholder="密码"]', 'Enter')
+        await page.wait_for_timeout(5000)
+
+
     # Save cookies if needed
     import asyncio
     await asyncio.sleep(5)
