@@ -144,7 +144,7 @@ def enrich_variants_with_product_id(product: dict) -> dict:
             variant_key = variant.get("variant_key", "")
             top_product_id = product.get("product_id", "")
             # Construct the new product_id for the variant
-            variant["product_id"] = f"{sku}_{top_product_id}_{variant_key}"
+            variant["product_id"] = f"{sku}_{top_product_id}"
 
     # Remove the outer 'product_id'
     product["pid"] = product["product_id"]

@@ -3,13 +3,17 @@ from pymongo import MongoClient
 from config import get_scraped_db_config
 from utils import flatten_dict
 
-from db_handler import insert_product_data, insert_stock_price
+from db_handler import insert_product_data, insert_stock_price, update_stock_price
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-def connect_to_mongodb():
+
+from typing import Optional, Any, List
+from pymongo.collection import Collection
+
+def connect_to_mongodb() -> Optional[Collection]:
     """Connect to MongoDB using the scraped database configuration"""
     config = get_scraped_db_config()
     try:
@@ -22,12 +26,13 @@ def connect_to_mongodb():
         logger.error(f"Failed to connect to MongoDB: {e}")
         return None
 
-def fetch_and_flatten_data(collection):
+
+def fetch_and_flatten_data(collection: Collection) -> List[dict]:
     """Fetch all documents from MongoDB and flatten them using flatten_dict"""
     try:
         documents = list(collection.find({}))
         logger.info(f"Fetched {len(documents)} documents from MongoDB")
-        flattened_data = []
+        flattened_data: List[dict] = []
         for doc in documents:
             doc['_id'] = str(doc['_id'])
             if 'variants' in doc and isinstance(doc['variants'], list):
@@ -45,8 +50,8 @@ def fetch_and_flatten_data(collection):
 
 # Mapping from flattened_data keys to lis_en keys
 MONGO_TO_MYSQL_MAP = {
-    'sku': 'sku',
-    'product_id': 'id',
+    'product_id': 'sku',
+    'sku': 'id',
     'name': 'default_product_name_en',
     'multi_product_name_es': 'multi_product_name_es',
     'description': 'default_product_desc_en',
@@ -78,8 +83,11 @@ def build_attribute(row):
         attr.append(str(row['材料']))
     return ','.join(attr) if attr else None
 
-def map_flattened_to_lis_en(row):
-    mapped = {}
+
+from typing import Dict, Any
+
+def map_flattened_to_lis_en(row: Dict[str, Any]) -> Dict[str, Any]:
+    mapped: Dict[str, Any] = {}
     for k in LIS_EN:
         if k == 'attribute':
             mapped[k] = build_attribute(row)
@@ -87,7 +95,7 @@ def map_flattened_to_lis_en(row):
             mapped[k] = row.get('image_url')
         else:
             # Find the mongo key for this lis_en key
-            mongo_key = None
+            mongo_key: str | None = None
             for mk, lk in MONGO_TO_MYSQL_MAP.items():
                 if lk == k:
                     mongo_key = mk
@@ -98,13 +106,17 @@ def map_flattened_to_lis_en(row):
                 mapped[k] = row.get(k)
     return mapped
 
+
 INSERT_MODE = 'both'  # Options: 'product', 'stock', 'both'
+
 
 # For insert_stock_price, map to lis_en2
 LIS_EN2 = ['sku', 'id', 'stock', 'price', 'status', 'update_time', 'stock2', 'currency', 'country']
+
+
 MONGO_TO_MYSQL_MAP_P = {
-    'sku': 'sku',
-    'product_id': 'id',
+    'product_id': 'sku',
+    'sku': 'id',
     'cjInventory': 'stock2',
     'factoryInventory': 'stock',
     'price': 'price',
@@ -113,6 +125,7 @@ MONGO_TO_MYSQL_MAP_P = {
     'country': 'country'
     # 'update_time' will be set in insert_stock_price
 }
+
 
 def map_flattened_to_lis_en2(row):
     mapped = {}
@@ -128,6 +141,7 @@ def map_flattened_to_lis_en2(row):
         else:
             mapped[k] = row.get(k)
     return mapped
+
 
 def main():
     logger.info("Starting MongoDB to MySQL export process...")
@@ -171,6 +185,7 @@ def main():
         logger.info(f"[product] Inserted {success_count} rows into MySQL. Failed: {fail_count}")
     if INSERT_MODE in ('stock', 'both'):
         logger.info(f"[stock] Inserted {success_count_p} rows into MySQL. Failed: {fail_count_p}")
+
 
 if __name__ == "__main__":
     main() 
