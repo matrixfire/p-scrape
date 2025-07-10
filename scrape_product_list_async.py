@@ -239,7 +239,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
 
         # Extract all image links from divs with data-id attribute inside the slides container
         all_image_links = []
-        image_divs = await page.query_selector_all('div.cj-product-detail div.container div.slides div[data-id]')
+        image_divs = await page.query_selector_all('div#slides > div[data-id] > div[data-id]')
         for div in image_divs:
             data_id = await div.get_attribute('data-id')
             if data_id:
@@ -500,7 +500,7 @@ if __name__ == "__main__":
     country = "global"
     urls = [
         ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
-        ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
+        # ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
     ]
     # urls = []
     # urls = load_name_url_tuples('extract_urls4.json')
