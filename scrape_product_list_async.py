@@ -144,7 +144,7 @@ def enrich_variants_with_product_id(product: dict) -> dict:
             variant_key = variant.get("variant_key", "")
             top_product_id = product.get("product_id", "")
             # Construct the new product_id for the variant
-            variant["product_id"] = f"{sku}_{top_product_id}"
+            variant["product_id"] = f"cj_{top_product_id}"
 
     # Remove the outer 'product_id'
     product["pid"] = product["product_id"]
@@ -280,7 +280,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                     inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
                     variant_details = {
                         # "sku": sku,
-                        "sku": f"cj_{sku.lower()}",
+                        "sku": f"{sku.lower()}",
                         # "id": variant_id,
                         "variant_id": variant_id,
                         "cjInventory": inventory_info["cjInventory"],
