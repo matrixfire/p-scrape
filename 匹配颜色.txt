@@ -686,3 +686,4 @@ yellow_
 yello_
 yelloz_处理失败：HTTPConnectionPool(host='127.0.0.1', port=7897): Read timed out. (read timeout=10)
 yello1_API错误：503 Server Error: Service Unavailable for url: http://43.138.243.218:3000/v1/chat/completions
+象牙色_多色
