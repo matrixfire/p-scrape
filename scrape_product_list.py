@@ -11,6 +11,7 @@ from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
+from ocr_captcha import handle_captcha
 
 from utils import sync_timed
 
@@ -95,6 +96,7 @@ def extract_product_data(card) -> Optional[Dict[str, Any]]:
 
 def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]]:
     page.goto(url)
+    await handle_captcha(page)
     # Try to dismiss popups/overlays
     try:
         page.click("button[aria-label='close']", timeout=3000)
@@ -128,6 +130,7 @@ def scrape_product_detail_page(context, product_url: str) -> Optional[str]:
     logger.info(f"Scraping detail page: {product_url}")
     page = context.new_page()
     page.goto(product_url)
+    await handle_captcha(page)
     try:
         page.wait_for_selector("div#description-description", timeout=15000)
     except Exception:

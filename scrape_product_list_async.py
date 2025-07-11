@@ -208,6 +208,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
 
 async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]]:
     await page.goto(url)
+    await handle_captcha(page)
     # Try to dismiss popups/overlays
     try:
         await page.click("button[aria-label='close']", timeout=3000)
@@ -322,6 +323,7 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
         try:
             # Navigate to the product detail page with a timeout
             await page.goto(product_url, timeout=30000)
+            await handle_captcha(page)
 
             # === 1. Extract variant SKUs and info from JS ===
             await extract_variant_skus_and_inventory(page, detailed_info_dict, product_url)
@@ -453,6 +455,7 @@ async def scrape_multiple_pages(
     all_products = []
     semaphore = asyncio.Semaphore(max_concurrent_details)
     await page.goto(build_paginated_url(start_url, 1))
+    await handle_captcha(page)
     if num_pages <= 0:
         num_pages = await get_max_num_pages(page)
         logger.info(f"Detected max num_pages: {num_pages}")
@@ -496,6 +499,7 @@ async def scrape_multiple_urls(urls, max_concurrent_details=3):
             category = url_obj[0]
             logger.info(f"\n=== Scraping URL: {url} ===\n")
             await page.goto(url)
+            await handle_captcha(page)
             
             products = await scrape_multiple_pages(
                 url,
