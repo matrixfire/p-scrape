@@ -56,6 +56,7 @@ async def nonlogin_and_get_context(playwright=None, headless=False):
     context = await browser.new_context()
     page = await context.new_page()
     await page.goto("https://www.cjdropshipping.com/")
+    await handle_captcha(page)
     await page.wait_for_timeout(3000)  # Optional: give it time to load
 
     # Return same structure as login function
