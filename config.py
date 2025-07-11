@@ -9,7 +9,7 @@ COLLECTION_NAME = os.getenv('COLLECTION_NAME', 'blog4')
 
 SCRAPED_DB_NAME = os.getenv('SCRAPED_DB_NAME', 'scraped_db')
 # SCRAPED_COLLECTION_NAME = os.getenv('SCRAPED_COLLECTION_NAME', 'products')
-SCRAPED_COLLECTION_NAME = os.getenv('SCRAPED_COLLECTION_NAME', 'products_5')
+SCRAPED_COLLECTION_NAME = os.getenv('SCRAPED_COLLECTION_NAME', 'products_CN1')
 
 def get_mongo_config():
     return {
