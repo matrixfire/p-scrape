@@ -6,43 +6,61 @@ from typing import List, Optional
 from ocr_captcha import handle_captcha
 
 
+import json
+from playwright.async_api import async_playwright, Page
+
+
+
+async def handle_login_if_required(page: Page):
+    """Check if login prompt appears and log in again if needed."""
+    login_btn = await page.query_selector('div[class*="loginBtn"] a')
+    if login_btn is not None:
+        print("[!] Login prompt detected. Logging in again...")
+        await login_btn.click()
+        await page.wait_for_selector('form[name="loginForm"]')
+
+        await page.fill('input[placeholder="用户名/电子邮件地址"]', 'tychan@163.com')
+        await page.fill('input[placeholder="密码"]', 'Kumai666888!')
+        await page.press('input[placeholder="密码"]', 'Enter')
+        await page.wait_for_timeout(5000)
+        print("[✓] Re-login completed.")
+
 
 async def login_and_get_context(playwright=None, headless=False):
     close_playwright = False
     if playwright is None:
         playwright = await async_playwright().start()
         close_playwright = True
+
     browser = await playwright.chromium.launch(headless=headless)
     context = await browser.new_context()
-    # Load cookies
-    with open("cj_cookies.json", "r") as f:
-        cookies = json.load(f)
-        await context.add_cookies(cookies)
-    page = await context.new_page()
 
-    # category_paths = await extract_category_paths_from_page(page)
+    # Load cookies if available
+    try:
+        with open("cj_cookies.json", "r") as f:
+            cookies = json.load(f)
+            await context.add_cookies(cookies)
+    except FileNotFoundError:
+        print("[!] No cookies found. Proceeding without cookies.")
+
+    page = await context.new_page()
 
     await page.goto("https://www.cjdropshipping.com/")
     await handle_captcha(page)
+    await handle_login_if_required(page)
 
-    login_btn = await page.query_selector('div.loginBtn--DtPtb a')
-    if login_btn is not None:
-        await page.click('div.loginBtn--DtPtb a')
-        await page.wait_for_selector('form[name="loginForm"]')
-        await page.fill('input[placeholder="用户名/电子邮件地址"]', 'tychan@163.com')
-        await page.fill('input[placeholder="密码"]', 'Kumai666888!')
-        await page.press('input[placeholder="密码"]', 'Enter')
-        await page.wait_for_timeout(5000)
+    # Wait for login to settle
+    await page.wait_for_timeout(2000)
 
-
-    # Save cookies if needed
-    import asyncio
-    await asyncio.sleep(5)
+    # Save cookies after login
     cookies = await context.cookies()
-    with open('cj_cookies.json', 'w', encoding='utf-8') as f:
+    with open("cj_cookies.json", "w", encoding="utf-8") as f:
         json.dump(cookies, f, ensure_ascii=False, indent=2)
-    # Return browser, context, page, playwright, and close_playwright for further use
-    return browser, context, page, playwright, close_playwright 
+
+    return browser, context, page, playwright, close_playwright
+
+
+
 
 
 

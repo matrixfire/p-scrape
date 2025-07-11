@@ -7,7 +7,7 @@ from unicodedata import category
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 import Levenshtein_get_color
-from cj_login import login_and_get_context, nonlogin_and_get_context, extract_category_paths_from_page
+from cj_login import login_and_get_context, nonlogin_and_get_context, extract_category_paths_from_page, handle_login_if_required
 from config import get_scraped_db_config
 from pymongo.collection import Collection
 from pymongo import MongoClient, errors
@@ -105,6 +105,13 @@ def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> Non
         else:
             collection.insert_one(product)
             logger.info(f"Inserted: {product['name']}")
+
+
+async def safe_goto(page, url):
+    await page.goto(url)
+    await handle_captcha(page)
+    await handle_login_if_required(page)
+
 
 
 async def extract_table_items(desc_elem: ElementHandle) -> Dict[str, str]:
@@ -207,7 +214,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
 
 
 async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]]:
-    await page.goto(url)
+    await safe_goto(page, url)
     await handle_captcha(page)
     # Try to dismiss popups/overlays
     try:
@@ -322,7 +329,7 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
         page = await context.new_page()
         try:
             # Navigate to the product detail page with a timeout
-            await page.goto(product_url, timeout=30000)
+            await safe_goto(page, product_url)
             await handle_captcha(page)
 
             # === 1. Extract variant SKUs and info from JS ===
@@ -454,7 +461,7 @@ async def scrape_multiple_pages(
 
     all_products = []
     semaphore = asyncio.Semaphore(max_concurrent_details)
-    await page.goto(build_paginated_url(start_url, 1))
+    await safe_goto(page, build_paginated_url(start_url, 1))
     await handle_captcha(page)
     if num_pages <= 0:
         num_pages = await get_max_num_pages(page)
@@ -498,7 +505,7 @@ async def scrape_multiple_urls(urls, max_concurrent_details=3):
             url = url_obj[-1]
             category = url_obj[0]
             logger.info(f"\n=== Scraping URL: {url} ===\n")
-            await page.goto(url)
+            await safe_goto(page, url)
             await handle_captcha(page)
             
             products = await scrape_multiple_pages(
