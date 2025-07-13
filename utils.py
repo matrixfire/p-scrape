@@ -4,6 +4,16 @@ from functools import wraps
 
 from typing import Dict, List, Any
 
+import os
+import random
+
+from typing import List, Optional
+import pyperclip as p
+from bs4 import BeautifulSoup, Tag
+import json
+from typing import List, Tuple
+
+
 def async_timed(func):
     """
     Decorator to time the execution of an asynchronous function.
@@ -169,10 +179,6 @@ def find_leaf_paths(tree, current_path=None):
 
 
 
-from typing import List, Optional
-import pyperclip as p
-from bs4 import BeautifulSoup, Tag
-
 def extract_category_paths(soup: BeautifulSoup) -> List[List[dict]]:
     """
     Parses HTML and returns a list of paths (each path is a list of dicts with 'name' and 'url'),
@@ -203,8 +209,6 @@ def extract_category_paths(soup: BeautifulSoup) -> List[List[dict]]:
 
 
 
-import os
-import random
 
 def save_log(content: str, prefix: str = "LOG-", folder: str = ".") -> str:
     """
@@ -229,8 +233,7 @@ def save_log(content: str, prefix: str = "LOG-", folder: str = ".") -> str:
     return file_path
 
 
-import json
-from typing import List, Tuple
+
 
 def load_name_url_tuples(filename: str) -> List[Tuple[str, str]]:
     """
@@ -250,28 +253,35 @@ def load_name_url_tuples(filename: str) -> List[Tuple[str, str]]:
 
 
 
+class TaskTracker:
+    def __init__(self, tasks: List[Dict], id_key: str = "id", progress_file: str = "done.json"):
+        self.tasks = tasks
+        self.id_key = id_key
+        self.progress_file = progress_file
+        self.done_ids = self._load_done_ids()
 
-# Example usage
-if __name__ == "__main__":
-    html = p.paste()
-    soup = BeautifulSoup(html, "html.parser")
-    paths = extract_category_paths(soup)
+    def _load_done_ids(self) -> set:
+        try:
+            with open(self.progress_file, 'r') as f:
+                return set(json.load(f))
+        except (FileNotFoundError, json.JSONDecodeError):
+            return set()
 
-    # Display extracted paths
-    for path in paths:
-        # print(" > ".join(str(node.url) for node in path))
-        print(f'{path[-1]}, {path[-1]}')
+    def _save_done_ids(self):
+        with open(self.progress_file, 'w') as f:
+            json.dump(list(self.done_ids), f, indent=2)
 
+    def is_done(self, task: Dict) -> bool:
+        return task[self.id_key] in self.done_ids
 
+    def mark_done(self, task: Dict):
+        self.done_ids.add(task[self.id_key])
+        self._save_done_ids()
 
-# Example usage:
-if __name__ == "__main__":
-    # Keep only specific attributes, remove all others
-    attrs_to_keep = ["id", "class", "href"]
-    result = clean_clipboard_html(mode="ultra", keep_attrs=attrs_to_keep)
-    print("Cleaned HTML has been copied back to the clipboard.")
-    print(result)
+    def get_pending_tasks(self) -> List[Dict]:
+        return [task for task in self.tasks if not self.is_done(task)]
 
-
-
- 
+    def reset(self):
+        """Clear all tracking and start fresh (optional)."""
+        self.done_ids = set()
+        self._save_done_ids()
