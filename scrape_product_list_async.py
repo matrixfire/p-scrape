@@ -107,6 +107,14 @@ def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> Non
             logger.info(f"Inserted: {product['name']}")
 
 
+def save_one_product_to_mongo(collection: Collection, product: Dict[str, Any]) -> None:
+    if collection.find_one({"pid": product["pid"]}):
+        logger.warning(f"Already exists: {product['pid']}")
+    else:
+        collection.insert_one(product)
+        logger.info(f"Inserted: {product['name']}")
+
+
 async def safe_goto(page, url):
     await page.goto(url)
     await handle_captcha(page)
