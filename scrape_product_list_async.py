@@ -527,7 +527,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
             all_results.extend(products)
             for product in products:
                 save_one_product_to_mongo(collection, product)
-            tracker.mark_done({'name':url_obj[0], 'url': url_obj[1]})
+            tracker.mark_done({'name':url_obj[0], 'url': url_obj[1].split('?')[0]})
         await browser.close()
         return all_results
 

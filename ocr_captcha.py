@@ -22,52 +22,91 @@ async def solve_captcha_from_src(src_url: str) -> str:
 
 async def handle_captcha(page):
     while True:
-        # Check if captcha is present
-        captcha_div = await page.query_selector("div.commit-main")
-        if not captcha_div:
-            break  # No captcha, continue with rest of scraping
-
-        print("Captcha detected. Handling...")
-
-        # Step 1: Click "Next" in #step1
-        step1_next_button = await page.query_selector("#step1 button")
-        if step1_next_button:
-            await step1_next_button.click()
-            await page.wait_for_timeout(1000)  # wait briefly for step2 to load
-
-        # Step 2: Wait for image to load in #step2
-        captcha_img = await page.wait_for_selector("#step2 img#verifyCode", timeout=5000)
-        src = await captcha_img.get_attribute("src")
-        if not src:
-            print("Captcha image src not found.")
-            break
-
-        # Step 3: Solve captcha
-        solution = await solve_captcha_from_src(src)
-
-        # Step 4: Fill in captcha and submit
-        await page.fill("#inputVerification", solution)
-        await page.click("#submit")
-
-        # Step 4.5: If an alert popup appears, close it
         try:
-            close_btn = await page.query_selector('div.alert-model-foot button.alert-model-foot-button')
-            if close_btn:
-                await close_btn.click()
-                await page.wait_for_timeout(500)  # wait briefly after closing
-        except Exception:
-            pass  # ignore errors if the popup is not present
+            if page.is_closed():
+                print("Page is closed, skipping captcha handling.")
+                return
 
-        # Step 5: Check again if captcha still exists
-        await page.wait_for_timeout(2000)  # wait for possible transition
-        still_there = await page.query_selector("div.commit-main")
-        if not still_there:
-            print("Captcha solved successfully.")
-            break
-        else:
-            print("Captcha still present. Refreshing page and retrying...")
-            await page.reload()
-            await page.wait_for_timeout(1500)  # wait for reload
+            captcha_div = await page.query_selector("div.commit-main")
+            if not captcha_div:
+                break  # No captcha, continue with rest of scraping
+
+            print("Captcha detected. Handling...")
+
+            # Step 1: Click "Next" in #step1
+            try:
+                step1_next_button = await page.query_selector("#step1 button")
+                if step1_next_button:
+                    await step1_next_button.click()
+                    await page.wait_for_timeout(1000)  # wait briefly for step2 to load
+            except Exception as e:
+                print(f"Error clicking step1 next button: {e}")
+                return
+
+            # Step 2: Wait for image to load in #step2
+            try:
+                captcha_img = await page.wait_for_selector("#step2 img#verifyCode", timeout=5000)
+                src = await captcha_img.get_attribute("src")
+                if not src:
+                    print("Captcha image src not found.")
+                    break
+            except Exception as e:
+                print(f"Error waiting for captcha image: {e}")
+                return
+
+            # Step 3: Solve captcha
+            try:
+                solution = await solve_captcha_from_src(src)
+            except Exception as e:
+                print(f"Error solving captcha: {e}")
+                return
+
+            # Step 4: Fill in captcha and submit
+            try:
+                await page.fill("#inputVerification", solution)
+                await page.click("#submit")
+            except Exception as e:
+                print(f"Error submitting captcha: {e}")
+                return
+
+            # Step 4.5: If an alert popup appears, close it
+            try:
+                close_btn = await page.query_selector('div.alert-model-foot button.alert-model-foot-button')
+                if close_btn:
+                    await close_btn.click()
+                    await page.wait_for_timeout(500)  # wait briefly after closing
+            except Exception:
+                pass  # ignore errors if the popup is not present
+
+            # Step 5: Check again if captcha still exists
+            await page.wait_for_timeout(2000)  # wait for possible transition
+
+            # Defensive: check if page is closed after possible navigation
+            if page.is_closed():
+                print("Page closed after captcha submit.")
+                return
+
+            try:
+                still_there = await page.query_selector("div.commit-main")
+            except Exception as e:
+                print(f"Error after captcha submit: {e}")
+                return
+
+            if not still_there:
+                print("Captcha solved successfully.")
+                break
+            else:
+                print("Captcha still present. Refreshing page and retrying...")
+                try:
+                    await page.reload()
+                    await page.wait_for_timeout(1500)  # wait for reload
+                except Exception as e:
+                    print(f"Error during page reload: {e}")
+                    return
+
+        except Exception as e:
+            print(f"Error in captcha handler: {e}")
+            return
 
 # async def main():
 #     async with async_playwright() as pw:
