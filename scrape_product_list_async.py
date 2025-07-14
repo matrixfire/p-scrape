@@ -357,7 +357,7 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
             # === 2. Wait for and extract description (same as your original) ===
             try:
                 # Wait for the description section to appear (if it exists)
-                await page.wait_for_selector("div#description-description", timeout=15000)
+                await page.wait_for_selector("div#description-description", timeout=35000)
             except PlaywrightTimeoutError:
                 # Log a warning if the description section does not appear in time
                 logger.warning(f"Timeout: description not found for {product_url}")
@@ -421,7 +421,7 @@ async def get_max_num_pages(page) -> int:
     """
     try:
         # Wait for the pagination element to appear
-        await page.wait_for_selector('div.to-go span', timeout=5000)
+        await page.wait_for_selector('div.to-go span', timeout=15000)
         spans = await page.query_selector_all('div.to-go span')
         for span in spans:
             text = (await span.inner_text()).strip()
@@ -572,5 +572,5 @@ if __name__ == "__main__":
     #     logger.info(product)
     # Save to MongoDB
     
-    if collection is not None: # save_one_product_to_mongo(collection, products)
-        save_to_mongo(collection, all_products) 
+    # if collection is not None: # save_one_product_to_mongo(collection, products)
+    #     save_to_mongo(collection, all_products) 
