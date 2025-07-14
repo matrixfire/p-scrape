@@ -17,11 +17,12 @@ async def handle_login_if_required(page: Page):
     if login_btn is not None:
         print("[!] Login prompt detected. Logging in again...")
         await login_btn.click()
+        print("ttttt1")
         await page.wait_for_selector('form[name="loginForm"]')
-
-        await page.fill('input[placeholder="用户名/电子邮件地址"]', 'tychan@163.com')
-        await page.fill('input[placeholder="密码"]', 'Kumai666888!')
-        await page.press('input[placeholder="密码"]', 'Enter')
+        print("ttttt2")
+        await page.fill('input[placeholder="Username/Email Address"]', 'tychan@163.com')
+        await page.fill('input[placeholder="Password"]', 'Kumai666888!')
+        await page.press('input[placeholder="Password"]', 'Enter')
         await page.wait_for_timeout(5000)
         print("[✓] Re-login completed.")
 
