@@ -8,3 +8,8 @@ pandas
 openpyxl
 mysql-connector-python
 pyperclip
+opencv-python
+pillow
+pytesseract
+numpy
+Levenshtein
