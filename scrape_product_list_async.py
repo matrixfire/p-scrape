@@ -20,7 +20,6 @@ from bs4 import BeautifulSoup
 from typing import Any, List, Tuple
 from Levenshtein_get_color import get_color_name
 from ocr_captcha import handle_captcha
-# Example usage:
 
 
 # ========== Logging setup ==========
@@ -28,9 +27,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(mes
 logger = logging.getLogger(__name__)
 
 
-
 # PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-womens-clothing-l-2FE8A083-5E7B-4179-896D-561EA116F730.html?pageNum=1&from=US"
-PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-pet-supplies-l-2409110611570657700.html?pageNum=1&from=US"
 PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-security-protection-l-192C9D30-5FEA-4B67-B251-AF6E97678DFF.html"
 BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
 
@@ -258,6 +255,16 @@ def getting_color(s):
     return color_name
 
 
+def extract_dimensions(s: str) -> tuple:
+    try:
+        parts = dict(item.split('=') for item in s.split(','))
+        def to_cm(key):
+            value = parts.get(key, "")
+            return str(round(float(value) / 10, 1)) if value else ""
+        return to_cm("long"), to_cm("width"), to_cm("height")
+    except Exception:
+        return "", "", ""
+
 
 async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str, Any], product_url: str):
     try:
@@ -315,6 +322,10 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                         "variant_key": variant_key,
                         "bg_img": ','.join(all_image_links),
                         "color": getting_color(variant_key),
+                        "length": extract_dimensions(item.get("standard", ""))[0],
+                        "width": extract_dimensions(item.get("standard", ""))[1],
+                        "height": extract_dimensions(item.get("standard", ""))[2],
+                        "size_unit": "cm"
                     }
                     # print(variant_details)
                     variants.append(variant_details)
@@ -351,22 +362,22 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
                 # Log a warning if the description section does not appear in time
                 logger.warning(f"Timeout: description not found for {product_url}")
             # Use Playwright's selector to get the description text
-            desc_elem = await page.query_selector("div#description-description")
-            if desc_elem:
-                # Try to find a child div with class containing 'descriptionContainer'
-                child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
-                info_dict = await extract_table_items(desc_elem)
-                info_dict = transform_packaging_dimensions(info_dict)
-                if child_elem:
-                    child_text = (await child_elem.inner_text()).strip()
-                    logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
-                    detailed_info_dict['description'] = child_text
-                    detailed_info_dict.update(info_dict)
-                    return detailed_info_dict
-            else:
-                # Log a warning if the description div is not found
-                logger.warning(f"No description found for {product_url}")
-                return None
+            # desc_elem = await page.query_selector("div#description-description")
+            # if desc_elem:
+            #     # Try to find a child div with class containing 'descriptionContainer'
+            #     child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
+            #     info_dict = await extract_table_items(desc_elem)
+            #     info_dict = transform_packaging_dimensions(info_dict)
+            #     if child_elem:
+            #         child_text = (await child_elem.inner_text()).strip()
+            #         logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
+            #         detailed_info_dict['description'] = child_text
+            #         # detailed_info_dict.update(info_dict)
+            #         return detailed_info_dict
+            # else:
+            #     # Log a warning if the description div is not found
+            #     logger.warning(f"No description found for {product_url}")
+            #     return None
         except PlaywrightTimeoutError:
             # Handle timeout errors when loading the page
             logger.error(f"Timeout loading page: {product_url}")
