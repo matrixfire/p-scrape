@@ -181,6 +181,25 @@ def insert_many_stock_price(rows: list[dict]):
     db_handler.insert_many('pallet_stock_price', data_list)
 
 
+def delete_products_by_categories(categories: list[str]):
+    """Delete rows from pallet_product_data where category is in the provided list."""
+    if not categories:
+        print("[INFO] No categories provided for deletion.")
+        return
+    # Escape and quote each category for SQL
+    escaped_cats = [db_handler.escape_value(cat) for cat in categories]
+    cats_str = ', '.join(escaped_cats)
+    query = f"DELETE FROM pallet_product_data WHERE category IN ({cats_str});"
+    print(f"[DEBUG] Delete Query: {query}")
+    try:
+        db_handler.execute(query)
+        print(f"[INFO] Deleted rows where category in {categories}")
+    except Exception as e:
+        print(f"[ERROR] Failed to delete rows: {e}")
+
+
 if __name__ == "__main__":
-    qs = query_stock_price()
-    print(qs)
+    # qs = query_stock_price()
+    # print(qs)
+    c_lt = ['围巾和披肩', '口罩', '腰带和腰带', '女士手套和连指手套', '女袜', '女帽', '紧身裤', '半身裙', '女士牛仔裤', '女短裤', '裤子和长裤', '阔腿裤', 'Ladies Short Sleeve', '女式吊带', '女士马甲', '女士短袖', '女士长袖', '衬衫和衬衣', '女性帽衫和运动衫', '连体裤', '连裤装', '女士礼服', '毛衣', '西服套装', '鸡尾酒礼服', '晚礼服', '伴娘礼服', '舞会礼服', '婚礼服', '花童礼服', '睡衣', '短裤', '内裤', '长袍', '睡衣套装', '四角裤', '长内衣裤', '男士长袖', '条纹类', '纯色类', '立体图案类', '印花类', '西服和西装外套', '男士毛衣', '真皮', '风衣', '男式衬衫', '男式夹克', '男士套装', '运动衫', '羊毛和混纺纱', '大衣', '羽绒服', '棒球帽', '轰炸机帽', '贝雷帽', '软呢帽', '女童内衣', '亲子装', '睡衣和长袍', '上衣和T恤', '套装', '礼服', '球衣', '户外短裤', '夹克', '裤子', '骑行服', '儿童鞋', '男童鞋', '女童鞋', '跑鞋', '舞蹈鞋', '滑板鞋', '远足鞋', '足球鞋', '篮球鞋']
+    delete_products_by_categories(c_lt)
