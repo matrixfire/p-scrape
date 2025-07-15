@@ -83,6 +83,30 @@ class DatabaseHandler:
             traceback.print_exc()
             print(query)
 
+    def insert_many(self, table_name, data_list):
+        if not data_list:
+            return
+
+        keys = [k for k in data_list[0].keys()]
+        keys_str = ', '.join(f'`{k}`' for k in keys)
+
+        values_str_list = []
+        for data in data_list:
+            values = [self.escape_value(data.get(k)) for k in keys]
+            values_str = '(' + ', '.join(values) + ')'
+            values_str_list.append(values_str)
+
+        query = f"INSERT INTO {table_name} ({keys_str}) VALUES {', '.join(values_str_list)};"
+        print(f"[DEBUG] Multi-row Insert Query:\n{query[:500]}...")  # truncate for long queries
+
+        try:
+            self.execute(query)
+        except Exception as e:
+            print("[ERROR] Bulk insert failed.")
+            traceback.print_exc()
+
+
+
 
 # Configuration and shared instance
 db_config = {
@@ -133,6 +157,28 @@ def query_stock_price(limit: int = 3) -> list[dict]:
     results = db_handler.cursor.fetchall()
     columns = [desc[0] for desc in db_handler.cursor.description] if db_handler.cursor.description else []
     return [dict(zip(columns, row)) for row in results] if results and columns else []
+
+
+def insert_many_product_data(rows: list[dict]):
+    if not rows:
+        return
+    data_list = [
+        {k: row[k] for k in lis_en if k in row and row[k] not in [None, '']}
+        for row in rows
+    ]
+    db_handler.insert_many('pallet_product_data', data_list)
+
+
+def insert_many_stock_price(rows: list[dict]):
+    if not rows:
+        return
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    data_list = []
+    for row in rows:
+        row['update_time'] = now
+        data = {k: v for k, v in row.items() if k and v != ''}
+        data_list.append(data)
+    db_handler.insert_many('pallet_stock_price', data_list)
 
 
 if __name__ == "__main__":
