@@ -48,7 +48,7 @@ class DatabaseHandler:
         values = [self.escape_value(data[k]) for k in keys]
         keys_str = ', '.join(f'`{k}`' for k in keys)
         values_str = ', '.join(values)
-        return f"INSERT INTO {table_name} ({keys_str}) VALUES ({values_str});"
+        return f"INSERT IGNORE INTO {table_name} ({keys_str}) VALUES ({values_str});"
 
     def insert(self, table_name, data):
         query = self.build_insert_query(table_name, data)
@@ -96,7 +96,7 @@ class DatabaseHandler:
             values_str = '(' + ', '.join(values) + ')'
             values_str_list.append(values_str)
 
-        query = f"INSERT INTO {table_name} ({keys_str}) VALUES {', '.join(values_str_list)};"
+        query = f"INSERT IGNORE INTO {table_name} ({keys_str}) VALUES {', '.join(values_str_list)};"
         print(f"[DEBUG] Multi-row Insert Query:\n{query[:500]}...")  # truncate for long queries
 
         try:
