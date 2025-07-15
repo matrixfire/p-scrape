@@ -219,7 +219,5 @@ def main():
                 logger.error(f"[stock] Failed to insert stock batch: {e}")
 
 
-
-
 if __name__ == "__main__":
     main() 
