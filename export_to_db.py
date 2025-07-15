@@ -4,15 +4,16 @@ from config import get_scraped_db_config
 from utils import flatten_dict
 import time
 from db_handler import insert_product_data, insert_stock_price, update_stock_price, insert_many_product_data, insert_many_stock_price
+from typing import Dict, Any
+
+from typing import Optional, Any, List
+from pymongo.collection import Collection
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-from typing import Dict, Any
-
-from typing import Optional, Any, List
-from pymongo.collection import Collection
 
 def connect_to_mongodb() -> Optional[Collection]:
     """Connect to MongoDB using the scraped database configuration"""
@@ -81,9 +82,6 @@ MONGO_TO_MYSQL_MAP_T1 = {
     'category': 'category',
     'currency': 'currency',
     'factoryInventory': 'stock'
-
-    # 'attribute' will be handled specially
-    # 'bg_img' will use image_url as fallback
 }
 
 
@@ -97,7 +95,6 @@ MONGO_TO_MYSQL_MAP_T2 = {
     'status': 'status',
     'currency': 'currency',
     'country': 'country'
-    # 'update_time' will be set in insert_stock_price
 }
 
 
@@ -119,7 +116,7 @@ def map_flattened_to_table1(row: Dict[str, Any]) -> Dict[str, Any]:
         if k == 'attribute':
             mapped[k] = build_attribute(row)
         elif k == 'bg_img':
-            mapped[k] = row.get('image_url')
+            mapped[k] = row.get('bg_img')
         else:
             # Find the mongo key for this lis_en key
             mongo_key: str | None = None
@@ -132,7 +129,6 @@ def map_flattened_to_table1(row: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 mapped[k] = row.get(k)
     return mapped
-
 
 
 
