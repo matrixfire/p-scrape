@@ -6,7 +6,6 @@ import logging
 from unicodedata import category
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
-import Levenshtein_get_color
 from cj_login import login_and_get_context, nonlogin_and_get_context, extract_category_paths_from_page, handle_login_if_required
 from config import get_scraped_db_config
 from pymongo.collection import Collection
@@ -80,7 +79,6 @@ def set_country_in_url(url: str, country: str) -> str:
     return urlunparse(new_parsed)
 
 
-
 # ========== MongoDB helpers ==========
 def init_mongo_scraped() -> Optional[Collection]:
     config = get_scraped_db_config()
@@ -116,7 +114,6 @@ async def safe_goto(page, url):
     await page.goto(url)
     await handle_captcha(page)
     await handle_login_if_required(page)
-
 
 
 async def extract_table_items(desc_elem: ElementHandle) -> Dict[str, str]:
@@ -206,7 +203,6 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
             'name': name,
             'price': price,
             'currency': resolve_currency(str(currency)),
-            # 'ad_quantity': ad_quantity,
             'product_url': product_url,
             'product_id': product_id,
             'image_url': image_url
@@ -362,22 +358,22 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
                 # Log a warning if the description section does not appear in time
                 logger.warning(f"Timeout: description not found for {product_url}")
             # Use Playwright's selector to get the description text
-            # desc_elem = await page.query_selector("div#description-description")
-            # if desc_elem:
-            #     # Try to find a child div with class containing 'descriptionContainer'
-            #     child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
-            #     info_dict = await extract_table_items(desc_elem)
-            #     info_dict = transform_packaging_dimensions(info_dict)
-            #     if child_elem:
-            #         child_text = (await child_elem.inner_text()).strip()
-            #         logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
-            #         detailed_info_dict['description'] = child_text
-            #         # detailed_info_dict.update(info_dict)
-            #         return detailed_info_dict
-            # else:
-            #     # Log a warning if the description div is not found
-            #     logger.warning(f"No description found for {product_url}")
-            #     return None
+            desc_elem = await page.query_selector("div#description-description")
+            if desc_elem:
+                # Try to find a child div with class containing 'descriptionContainer'
+                child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
+                info_dict = await extract_table_items(desc_elem)
+                info_dict = transform_packaging_dimensions(info_dict)
+                if child_elem:
+                    child_text = (await child_elem.inner_text()).strip()
+                    logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
+                    detailed_info_dict['description'] = child_text
+                    # detailed_info_dict.update(info_dict)
+                    return detailed_info_dict
+            else:
+                # Log a warning if the description div is not found
+                logger.warning(f"No description found for {product_url}")
+                return None
         except PlaywrightTimeoutError:
             # Handle timeout errors when loading the page
             logger.error(f"Timeout loading page: {product_url}")
@@ -541,9 +537,6 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
             tracker.mark_done({'name':url_obj[0], 'url': url_obj[1].split('?')[0]})
         await browser.close()
         return all_results
-
-
-
 
 
 if __name__ == "__main__":

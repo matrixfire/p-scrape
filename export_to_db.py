@@ -208,7 +208,7 @@ def main():
         
         if INSERT_MODE in ('product', 'both'):
             try:
-                product_batch = [map_flattened_to_lis_en(row) for row in batch]
+                product_batch = [map_flattened_to_table1(row) for row in batch]
                 insert_many_product_data(product_batch)
                 logger.info(f"[product] Batch {i//BATCH_SIZE+1}: Inserted {len(product_batch)} rows.")
             except Exception as e:
@@ -216,7 +216,7 @@ def main():
 
         if INSERT_MODE in ('stock', 'both'):
             try:
-                stock_batch = [map_flattened_to_lis_en2(row) for row in batch]
+                stock_batch = [map_flattened_to_table2(row) for row in batch]
                 insert_many_stock_price(stock_batch)
                 logger.info(f"[stock] Batch {i//BATCH_SIZE+1}: Inserted {len(stock_batch)} rows.")
             except Exception as e:
