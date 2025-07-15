@@ -548,14 +548,14 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("diff.json", "r", encoding='utf-8') as f:
+    with open("diff_cn.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
 
     tracker = TaskTracker(tasks, id_key='url')
-    print(f"Found tasks: {len(tasks)}")
+    print(f"Found tasks: {len(tasks)}\n")
     
     COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-    country = "US"
+    country = "CN"
     # urls = [
     #     # ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
     #     ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
