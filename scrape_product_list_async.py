@@ -263,10 +263,73 @@ def extract_dimensions(s: str) -> tuple:
 
 
 async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str, Any], product_url: str):
+    ''' inventory and logistics '''
     try:
         # Step 1: Extract product and inventory data
         product_data = await page.evaluate("() => window.productDetailData?.stanProducts || []")
         variant_inventory_data = await page.evaluate("() => window.productDetailData?.variantInventory || []")
+        # await page.wait_for_load_state("networkidle")
+
+        # JS 脚本：构造 payload + 执行 fetch
+        logistics_data = await page.evaluate("""async () => {
+            const variants = window.productDetailData?.stanProducts || [];
+            const productInfo = window.productDetailData;
+            if (!variants.length || !productInfo) return { error: "Missing product data" };
+
+            const productType = productInfo.productType;
+            const startCountryCode = 'CN';
+            const receiverCountryCode = 'US';
+            const platform = 'shopify';
+            const quantity = 1;
+
+            const customerCode = window.loginInfoController?.info?.("userId") || "";
+
+            const params = variants.map(variant => ({
+                startCountryCode,
+                countryCode: receiverCountryCode,
+                platform,
+                property: productInfo.property.key,
+                weight: +variant.packWeight * quantity,
+                sku: variant.sku,
+                pid: productInfo.id,
+                length: variant.long,
+                width: variant.width,
+                height: variant.height,
+                volume: +variant.volume * quantity,
+                quantity,
+                customerCode,
+                skus: [variant.sku],
+                productType,
+                supplierId: productType === window.CjProductDetail_type?.$u?.SupplierSelf
+                    ? productInfo.supplierId
+                    : undefined
+            }));
+
+            const token = window.loginInfoController?.info?.("token") || "";
+            const res = await fetch("https://www.cjdropshipping.com/product-api/assign/batchUnionLogisticsFreightV355", {
+                method: "POST",
+                headers: {
+                    "accept": "application/json;charset=utf-8",
+                    "content-type": "application/json;charset=UTF-8",
+                    "token": token
+                },
+                body: JSON.stringify(params),
+                credentials: "include"
+            });
+
+            const json = await res.json();
+            return json?.data || [];
+        }""")
+
+        # 打印结果
+        if isinstance(logistics_data, dict) and logistics_data.get("error"):
+            print("❌ 错误:", logistics_data["error"])
+        else:
+            print("\n🚚 获取到的物流数据：")
+            print("*"*30)
+            for item in logistics_data:
+                print(f"{item.get('logisticName')}: {item.get('price')}")
+            print("*"*30)
 
         # Extract all image links from divs with data-id attribute inside the slides container
         all_image_links = []
