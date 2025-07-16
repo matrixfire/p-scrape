@@ -1,0 +1,133 @@
+{
+  "pid": "cj_12345",
+  "name": "Women's Elegant Cardigan",
+  "price": "18.99",
+  "currency": "USD",
+  "product_url": "https://www.cjdropshipping.com/product/12345",
+  "image_url": "https://example.com/image.jpg",
+  "country": "US",
+  "category": "Women's Clothing",
+  "description": "This elegant cardigan is perfect for spring and summer...",
+  "variants": [
+    {
+      "sku": "abc123",
+      "variant_id": "v1",
+      "cjInventory": 100,
+      "factoryInventory": 200,
+      "price": 18.99,
+      "weight": 250,
+      "weight_unit": "g",
+      "variant_image": "https://example.com/variant1.jpg",
+      "variant_key": "Black-S",
+      "bg_img": "https://example.com/bg1.jpg,https://example.com/bg2.jpg",
+      "color": "Black",
+      "length": "65",
+      "width": "50",
+      "height": "2",
+      "size_unit": "cm"
+    }
+  ]
+}
+
+
+
+
+
+const getLogistics = ({ _warehouseCode, _receiverCountryCode, _platformName, _quantity }) => {
+  return (async () => {
+    const productType = productInfo.productType;
+    const startCountryCode = _warehouseCode || selectedWarehouse;
+    const isCn = startCountryCode === 'CN';
+    const quantity = _quantity || quantity;
+
+    const variants = curVariant ? [curVariant] : productInfo.stanProducts;
+    const receiverCountryCode = _receiverCountryCode || selectedReceiverCountryCode;
+    const platform = _platformName || selectedPlatform;
+
+    const params = buildLogisticsParams({
+      variants,
+      startCountryCode,
+      receiverCountryCode,
+      platform,
+      quantity,
+      productType
+    });
+
+    const logisticsList = await fetchLogisticsList(params, productType);
+
+    setLoading(false);
+    handleLogisticsResult(logisticsList, {
+      receiverCountryCode,
+      platform,
+      startCountryCode,
+      isCn
+    });
+  })();
+};
+
+function buildLogisticsParams({ variants, startCountryCode, receiverCountryCode, platform, quantity, productType }) {
+  return variants.map((variant) => ({
+    startCountryCode,
+    countryCode: receiverCountryCode,
+    platform,
+    property: productInfo.property.key,
+    weight: +variant.packWeight * quantity,
+    sku: variant.sku,
+    pid: productInfo.id,
+    length: variant.long,
+    width: variant.width,
+    height: variant.height,
+    volume: +variant.volume * quantity,
+    quantity,
+    customerCode: window.loginInfoController.info('userId'),
+    skus: [variant.sku],
+    productType,
+    supplierId: productType === CjProductDetail_type.$u.SupplierSelf ? productInfo.supplierId : undefined
+  }));
+}
+
+async function fetchLogisticsList(params, productType) {
+  const [, res] = await APIS.getLogisticsList(params);
+  let list = res?.data || [];
+
+  if (productType === CjProductDetail_type.$u.SupplierSelf) {
+    list = common.uniqueArr([...list], 'logisticName');
+  }
+
+  return list;
+}
+
+function handleLogisticsResult(list, { receiverCountryCode, platform, startCountryCode, isCn }) {
+  if (!Array.isArray(list)) return;
+
+  const sortedList = sortLogisticsByPrice(list);
+  const selected = selectPreferredLogistic(sortedList);
+
+  setSelectedLogistic(selected);
+  setLogistics(sortedList);
+  setIsCn(isCn);
+
+  if (sortedList.length === 0) {
+    getApplyShipStatus({ warehouse: startCountryCode, receiverCountryCode, platform });
+  } else {
+    sessionStorage.removeItem('applyshipLogin');
+  }
+}
+
+function sortLogisticsByPrice(list) {
+  return list.sort((a, b) => {
+    const parsePrice = (price) => {
+      if (typeof price === 'string') return parseFloat(price.split('--')[0]);
+      if (typeof price === 'number') return price;
+      return Infinity;
+    };
+    return parsePrice(a.price) - parsePrice(b.price);
+  });
+}
+
+function selectPreferredLogistic(list) {
+  const index = list.findIndex(
+    (item) => item.logisticName === selectedLogistic?.logisticName
+  );
+  return index > -1 ? list[index] : list[0] || null;
+}
