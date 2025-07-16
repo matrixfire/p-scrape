@@ -13,3 +13,4 @@ pillow
 pytesseract
 numpy
 Levenshtein
+aiohttp
