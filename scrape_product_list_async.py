@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 from typing import Any, List, Tuple
 from Levenshtein_get_color import get_color_name
 from ocr_captcha import handle_captcha
-
+from handle_imgs import extract_valid_urls
 
 # ========== Logging setup ==========
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
@@ -304,6 +304,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
 
                 if sku:
                     inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
+                    bg_imgs_str = ','.join(all_image_links)
                     variant_details = {
                         # "sku": sku,
                         "sku": f"{sku.lower()}",
@@ -316,7 +317,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                         "weight_unit": "g",
                         "variant_image": variant_img,
                         "variant_key": variant_key,
-                        "bg_img": ','.join(all_image_links),
+                        "bg_img": ','.join(extract_valid_urls(bg_imgs_str)),
                         "color": getting_color(variant_key),
                         "length": extract_dimensions(item.get("standard", ""))[0],
                         "width": extract_dimensions(item.get("standard", ""))[1],
@@ -541,7 +542,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("shoes.json", "r", encoding='utf-8') as f:
+    with open("pet.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
 
     tracker = TaskTracker(tasks, id_key='url')
