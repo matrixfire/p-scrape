@@ -268,6 +268,104 @@ def get_country_data(data_list, target_country="US"):
 
 
 
+async def fetch_logistics_data_individual(page, product_url: str = ""):
+    """异步抓取当前页面的物流信息（对每个 variant 单独请求）"""
+    try:
+        await page.wait_for_function("window.productDetailData?.stanProducts?.length > 0", timeout=10_000)
+
+        logistics_data = await page.evaluate("""
+        async () => {
+            const variants = window.productDetailData?.stanProducts || [];
+            const productInfo = window.productDetailData;
+            if (!variants.length || !productInfo) return { error: "Missing product data" };
+
+            const productType = productInfo.productType;
+            const startCountryCode = 'US';
+            const receiverCountryCode = 'US';
+            const platform = 'shopify';
+            const quantity = 1;
+            const customerCode = window.loginInfoController?.info?.("userId") || "";
+            const token = window.loginInfoController?.info?.("token") || "";
+
+            const fetchResults = [];
+
+            for (const variant of variants) {
+                const param = {
+                    startCountryCode,
+                    countryCode: receiverCountryCode,
+                    platform,
+                    property: productInfo.property.key,
+                    weight: +variant.packWeight * quantity,
+                    sku: variant.sku,
+                    pid: productInfo.id,
+                    length: variant.long,
+                    width: variant.width,
+                    height: variant.height,
+                    volume: +variant.volume * quantity,
+                    quantity,
+                    customerCode,
+                    skus: [variant.sku],
+                    productType,
+                    supplierId: productType === window.CjProductDetail_type?.$u?.SupplierSelf
+                        ? productInfo.supplierId
+                        : undefined
+                };
+
+                try {
+                    const res = await fetch("https://www.cjdropshipping.com/product-api/assign/batchUnionLogisticsFreightV355", {
+                        method: "POST",
+                        headers: {
+                            "accept": "application/json;charset=utf-8",
+                            "content-type": "application/json;charset=UTF-8",
+                            "token": token
+                        },
+                        body: JSON.stringify([param]),
+                        credentials: "include"
+                    });
+
+                    const contentType = res.headers.get("content-type") || "";
+                    if (!res.ok || !contentType.includes("application/json")) {
+                        const text = await res.text();
+                        fetchResults.push({ error: "Invalid response", preview: text.slice(0, 300), sku: variant.sku });
+                        continue;
+                    }
+
+                    const json = await res.json();
+                    fetchResults.push({ sku: variant.sku, result: json?.data || [] });
+                } catch (e) {
+                    fetchResults.push({ error: "Request failed", detail: e?.toString?.(), sku: variant.sku });
+                }
+            }
+
+            return fetchResults;
+        }
+        """)
+
+        print(f"\n🚚 每个 variant 的物流数据 from {product_url or '[current page]'}:")
+        print("=" * 40)
+
+        for entry in logistics_data:
+            sku = entry.get("sku", "N/A")
+            if "error" in entry:
+                print(f"❌ {sku}: {entry['error']}")
+                if "preview" in entry:
+                    print(f"🔍 预览: {entry['preview']}")
+                continue
+
+            results = entry.get("result", [])
+            print(f"✅ SKU: {sku}")
+            for item in results:
+                print(f"  {item.get('logisticName')}: {item.get('price')}")
+
+        print("=" * 40)
+        return logistics_data
+
+    except Exception as e:
+        print("⚠️ 异常发生:", e)
+        return None
+
+
+
 
 def extract_dimensions(s: str) -> tuple:
     try:
@@ -288,78 +386,8 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
         variant_inventory_data = await page.evaluate("() => window.productDetailData?.variantInventory || []")
         # await page.wait_for_load_state("networkidle")
 
-        # JS 脚本：构造 payload + 执行 fetch
-        # 等待 window.productDetailData 加载完成（最长 10 秒）
-        await page.wait_for_function("window.productDetailData?.stanProducts?.length > 0", timeout=10_000)
+        logistics = await fetch_logistics_data_individual(page)
 
-        logistics_data = await page.evaluate("""
-        async () => {
-            const variants = window.productDetailData?.stanProducts || [];
-            const productInfo = window.productDetailData;
-            if (!variants.length || !productInfo) return { error: "Missing product data" };
-
-            const productType = productInfo.productType;
-            const startCountryCode = 'US';
-            const receiverCountryCode = 'US';
-            const platform = 'shopify';
-            const quantity = 1;
-
-            const customerCode = window.loginInfoController?.info?.("userId") || "";
-
-            const params = variants.map(variant => ({
-                startCountryCode,
-                countryCode: receiverCountryCode,
-                platform,
-                property: productInfo.property.key,
-                weight: +variant.packWeight * quantity,
-                sku: variant.sku,
-                pid: productInfo.id,
-                length: variant.long,
-                width: variant.width,
-                height: variant.height,
-                volume: +variant.volume * quantity,
-                quantity,
-                customerCode,
-                skus: [variant.sku],
-                productType,
-                supplierId: productType === window.CjProductDetail_type?.$u?.SupplierSelf
-                    ? productInfo.supplierId
-                    : undefined
-            }));
-
-            const token = window.loginInfoController?.info?.("token") || "";
-            const res = await fetch("https://www.cjdropshipping.com/product-api/assign/batchUnionLogisticsFreightV355", {
-                method: "POST",
-                headers: {
-                    "accept": "application/json;charset=utf-8",
-                    "content-type": "application/json;charset=UTF-8",
-                    "token": token
-                },
-                body: JSON.stringify(params),
-                credentials: "include"
-            });
-
-            const contentType = res.headers.get("content-type") || "";
-            if (!res.ok || !contentType.includes("application/json")) {
-                const text = await res.text();
-                return { error: "Invalid response", preview: text.slice(0, 300) };
-            }
-
-            const json = await res.json();
-            return json?.data || [];
-        }
-        """)
-
-        if isinstance(logistics_data, dict) and logistics_data.get("error"):
-            print("❌ 错误:", logistics_data["error"])
-            print("🔎 响应片段预览:\n", logistics_data.get("preview", ""))
-        else:
-            print(f"\n🚚 获取到的物流数据 from {product_url}：")
-            print("*" * 30)
-            print(str(logistics_data))
-            for item in logistics_data:
-                print(f"{item.get('logisticName')}: {item.get('price')}")
-            print("*" * 30)
 
         # Extract all image links from divs with data-id attribute inside the slides container
         all_image_links = []
