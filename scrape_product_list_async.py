@@ -214,6 +214,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
         return None
 
 
+@async_timed
 async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]]:
     await safe_goto(page, url)
     await handle_captcha(page)
@@ -262,7 +263,7 @@ def extract_dimensions(s: str) -> tuple:
         return "", "", ""
 
 
-async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str, Any], product_url: str):
+async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any], product_url: str):
     ''' inventory and logistics '''
     try:
         # Step 1: Extract product and inventory data
@@ -382,9 +383,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                     inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
                     bg_imgs_str = ','.join(all_image_links)
                     variant_details = {
-                        # "sku": sku,
                         "sku": f"{sku.lower()}",
-                        # "id": variant_id,
                         "variant_id": variant_id,
                         "cjInventory": inventory_info["cjInventory"],
                         "factoryInventory": inventory_info["factoryInventory"],
@@ -398,12 +397,16 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                         "length": extract_dimensions(item.get("standard", ""))[0],
                         "width": extract_dimensions(item.get("standard", ""))[1],
                         "height": extract_dimensions(item.get("standard", ""))[2],
-                        "size_unit": "cm"
+                        "size_unit": "cm",
+                        "shipping_fee": "",
+                        "shipping_method": "",
+                        "delivery_time": "",
+
                     }
                     # print(variant_details)
                     variants.append(variant_details)
 
-            detailed_info_dict["variants"] = variants
+            product_dict["variants"] = variants
             # logger.info(f"Extracted {len(variants)} variants with SKUs and inventory from {product_url}")
         else:
             logger.warning(f"No stanProducts found for {product_url}")
@@ -413,7 +416,7 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
 
 
 async def scrape_product_detail_page(context, product_url: str, semaphore: asyncio.Semaphore) -> Optional[Dict[str, Any]]:
-    detailed_info_dict = {}
+    product_dict = {}
     # Use a semaphore to limit the number of concurrent detail page scrapes
     async with semaphore:
         logger.info(f"Scraping detail page: {product_url}")
@@ -425,7 +428,7 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
             await handle_captcha(page)
 
             # === 1. Extract variant SKUs and info from JS ===
-            await extract_variant_skus_and_inventory(page, detailed_info_dict, product_url)
+            await extract_variant_skus_and_inventory(page, product_dict, product_url)
 
             # === 2. Wait for and extract description (same as your original) ===
             try:
@@ -444,9 +447,9 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
                 if child_elem:
                     child_text = (await child_elem.inner_text()).strip()
                     logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
-                    detailed_info_dict['description'] = child_text
-                    # detailed_info_dict.update(info_dict)
-                    return detailed_info_dict
+                    product_dict['description'] = child_text
+                    # product_dict.update(info_dict)
+                    return product_dict
             else:
                 # Log a warning if the description div is not found
                 logger.warning(f"No description found for {product_url}")
@@ -535,7 +538,6 @@ async def get_categories_links(page: Any) -> List[Tuple[str, str]]:
     return categoris_links
 
 
-@async_timed
 async def scrape_multiple_pages(
     start_url: str,
     num_pages: int = 0,
@@ -545,6 +547,7 @@ async def scrape_multiple_pages(
     category="general"
 ) -> List[Dict[str, Any]]:
     country = get_country_from_url(start_url)
+
     close_context = False
     if context is None or page is None:
         playwright = await async_playwright().start()
@@ -555,12 +558,15 @@ async def scrape_multiple_pages(
     semaphore = asyncio.Semaphore(max_concurrent_details)
     await safe_goto(page, build_paginated_url(start_url, 1))
     await handle_captcha(page)
+
     if num_pages <= 0:
         num_pages = await get_max_num_pages(page)
         logger.info(f"Detected max num_pages: {num_pages}")
+
     for page_num in range(1, num_pages + 1):
         url = build_paginated_url(start_url, page_num)
         logger.info(f"\n--- Scraping page {page_num}: {url} ---\n")
+
         products = await scrape_single_product_list_page(page, url)
         detail_tasks = []
         for product in products:
@@ -569,10 +575,12 @@ async def scrape_multiple_pages(
             else:
                 detail_tasks.append(asyncio.sleep(0, result=None))
         detail_infos = await asyncio.gather(*detail_tasks)
+
         for product, detail_info in zip(products, detail_infos):
             if detail_info is not None:
                 product.update(detail_info)
             product.update({"country": country, "category": category})
+
         products = list(map(enrich_variants_with_product_id, products))
         all_products.extend(products)
         if page_num < num_pages:
@@ -590,9 +598,11 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
         browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
         
         all_results = []
+
         if len(urls) == 0:
             categoris_links = await get_categories_links(page)
             urls = categoris_links
+
         for url_obj in urls:
             url = url_obj[-1]
             category = url_obj[0]
@@ -609,9 +619,11 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
                 category = category
             )
             all_results.extend(products)
+
             for product in products:
                 save_one_product_to_mongo(collection, product)
             tracker.mark_done({'name':url_obj[0], 'url': url_obj[1].split('?')[0]})
+
         await browser.close()
         return all_results
 
@@ -620,27 +632,15 @@ if __name__ == "__main__":
     collection = init_mongo_scraped()
     with open("diff_t.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
-
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
     
     COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-    country = "US"
-    # urls = [
-    #     # ("general", "https://www.cjdropshipping.com/list/wholesale-networking-tools-l-9A33970D-F4BC-48EC-BEAB-FEC19C130963.html?id=EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6&pageNum=1"),
-    #     ("general", "https://www.cjdropshipping.com/list/wholesale-tablet-cases-l-87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E.html")
-    # ]
-    # urls = []
-    # urls = load_name_url_tuples('extract_urls2.json')
-    urls = [(d['name'], d['url'])for d in tracker.get_pending_tasks()]
-    urls = [(t[0], set_country_in_url(t[1], country)) for t in urls]
+    COUNTRY = "US"
 
+    urls_ = [(d['name'], d['url'])for d in tracker.get_pending_tasks()]
+    urls = [(t[0], set_country_in_url(t[1], COUNTRY)) for t in urls_]
     print(urls)
+
     all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=3, collection=collection, tracker=tracker))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
-    # for product in all_products:
-    #     logger.info(product)
-    # Save to MongoDB
-    
-    # if collection is not None: # save_one_product_to_mongo(collection, products)
-    #     save_to_mongo(collection, all_products) 
