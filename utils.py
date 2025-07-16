@@ -276,8 +276,11 @@ class TaskTracker:
 
     def mark_done(self, task: Dict):
         self.done_ids.add(task[self.id_key])
-        self._save_done_ids()
-        print(f"Task: {task}\n Marked Done.")
+        if self.progress_file != '':
+            self._save_done_ids()
+            print(f"Task: {task}\n Marked Done.")
+        else:
+            print(f"Task: {task}\n done, but skipped marking.")
 
     def get_pending_tasks(self) -> List[Dict]:
         return [task for task in self.tasks if not self.is_done(task)]

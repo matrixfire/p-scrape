@@ -233,7 +233,7 @@ async def scrape_single_product_list_page(page, url: str) -> List[Dict[str, Any]
     except Exception:
         logger.warning(f"Timeout: Product cards did not appear in time for {url}!")
     product_cards = await page.query_selector_all("div.product-card") # *** Extract product cards from the product list page
-    logger.info(f"Found {len(product_cards)} product cards on {url}")
+    logger.info(f"Found {len(product_cards)} product cards on {url}\n")
     products = []
     for card in product_cards:
         data = await extract_product_data(card)
@@ -271,13 +271,17 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
         # await page.wait_for_load_state("networkidle")
 
         # JS 脚本：构造 payload + 执行 fetch
-        logistics_data = await page.evaluate("""async () => {
+        # 等待 window.productDetailData 加载完成（最长 10 秒）
+        await page.wait_for_function("window.productDetailData?.stanProducts?.length > 0", timeout=10_000)
+
+        logistics_data = await page.evaluate("""
+        async () => {
             const variants = window.productDetailData?.stanProducts || [];
             const productInfo = window.productDetailData;
             if (!variants.length || !productInfo) return { error: "Missing product data" };
 
             const productType = productInfo.productType;
-            const startCountryCode = 'CN';
+            const startCountryCode = 'US';
             const receiverCountryCode = 'US';
             const platform = 'shopify';
             const quantity = 1;
@@ -317,19 +321,28 @@ async def extract_variant_skus_and_inventory(page, detailed_info_dict: Dict[str,
                 credentials: "include"
             });
 
+            const contentType = res.headers.get("content-type") || "";
+            if (!res.ok || !contentType.includes("application/json")) {
+                const text = await res.text();
+                return { error: "Invalid response", preview: text.slice(0, 300) };
+            }
+
             const json = await res.json();
             return json?.data || [];
-        }""")
+        }
+        """)
 
         # 打印结果
         if isinstance(logistics_data, dict) and logistics_data.get("error"):
             print("❌ 错误:", logistics_data["error"])
+            print("🔎 响应片段预览:\n", logistics_data.get("preview", ""))
         else:
-            print("\n🚚 获取到的物流数据：")
-            print("*"*30)
+            print(f"\n🚚 获取到的物流数据 from {product_url}：")
+            print("*" * 30)
+            print(str(logistics_data))
             for item in logistics_data:
                 print(f"{item.get('logisticName')}: {item.get('price')}")
-            print("*"*30)
+            print("*" * 30)
 
         # Extract all image links from divs with data-id attribute inside the slides container
         all_image_links = []
@@ -605,10 +618,10 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("pet.json", "r", encoding='utf-8') as f:
+    with open("diff_t.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
 
-    tracker = TaskTracker(tasks, id_key='url')
+    tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
     
     COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
