@@ -24,7 +24,11 @@
       "length": "65",
       "width": "50",
       "height": "2",
-      "size_unit": "cm"
+      "size_unit": "cm",
+
+      "shipping_fee": ...,
+      "shipping_method": ...,
+      "delivery_time": ...
     }
   ]
 }
