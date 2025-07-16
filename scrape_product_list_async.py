@@ -12,7 +12,7 @@ from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
 from playwright.async_api import ElementHandle
-from utils import async_timed, resolve_currency, extract_category_paths, save_log, load_name_url_tuples, TaskTracker
+from utils import async_timed, resolve_currency, extract_category_paths, save_log, load_name_url_tuples, TaskTracker, pretty_print_json
 import re
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
@@ -160,6 +160,7 @@ def enrich_variants_with_product_id(product: dict) -> dict:
     # Remove the outer 'product_id'
     product["pid"] = product["product_id"]
     product.pop("product_id", None)
+    pretty_print_json(product, "Enriched Product Dict", 10, 3)
 
     return product
 
@@ -199,7 +200,7 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
                 image_url = await img_elem.get_attribute('data-src')
         except Exception:
             pass
-        product_data = {
+        product_data_basic = {
             'name': name,
             'price': price,
             'currency': resolve_currency(str(currency)),
@@ -207,8 +208,8 @@ async def extract_product_data(card) -> Optional[Dict[str, Any]]:
             'product_id': product_id,
             'image_url': image_url
         }
-        # logger.info(f"Scraped product: {product_data}")
-        return product_data
+        # logger.info(f"Scraped product: {product_data_basic}")
+        return product_data_basic
     except Exception as e:
         logger.error(f"Error parsing product card: {e}")
         return None
@@ -250,6 +251,22 @@ def getting_color(s):
         color_name = "多色"
 
     return color_name
+
+
+def get_country_data(data_list, target_country="US"):
+    for item in data_list:
+        if item.get("countryCode") == target_country:
+            return item
+    # If not found, return a zero-valued default dict for the country
+    return {
+        "countryCode": target_country,
+        "totalInventory": 0,
+        "cjInventory": 0,
+        "factoryInventory": 0,
+        "verifiedWarehouse": 0
+    }
+
+
 
 
 def extract_dimensions(s: str) -> tuple:
@@ -333,7 +350,6 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
         }
         """)
 
-        # 打印结果
         if isinstance(logistics_data, dict) and logistics_data.get("error"):
             print("❌ 错误:", logistics_data["error"])
             print("🔎 响应片段预览:\n", logistics_data.get("preview", ""))
@@ -359,11 +375,20 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
             # Build a lookup dictionary from vid -> inventory info
             inventory_lookup = {}
             for inv_entry in variant_inventory_data:
+                ''' inv_entry will be like:
+                {'vid': 'FF730E7B-8B6D-45D8-B7A4-8562227A0CB6',
+                'inventory': [{'countryCode': 'CN',
+                'totalInventory': 10928,
+                'cjInventory': 0,
+                'factoryInventory': 10928,
+                'verifiedWarehouse': 2}]}
+                '''
+
                 vid = inv_entry.get("vid")
                 inventory_list = inv_entry.get("inventory", [])
 
                 if inventory_list:
-                    inv = inventory_list[0]
+                    inv = get_country_data(inventory_list, "US") #; inventory_list[0]
                     inventory_lookup[vid] = {
                         "cjInventory": int(inv.get("cjInventory") or 0),
                         "factoryInventory": int(inv.get("factoryInventory") or 0)
@@ -449,6 +474,7 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
                     logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
                     product_dict['description'] = child_text
                     # product_dict.update(info_dict)
+                    # pretty_print_json(product_dict, "Product Dict", 10, 3)
                     return product_dict
             else:
                 # Log a warning if the description div is not found

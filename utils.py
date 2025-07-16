@@ -252,6 +252,90 @@ def load_name_url_tuples(filename: str) -> List[Tuple[str, str]]:
 
 
 
+def pretty_print_json_(data, title=None, max_value_length=100):
+    """
+    Pretty-print a JSON string or dict with optional title.
+    Truncates long string values over `max_value_length` characters.
+    """
+    def truncate_value(val):
+        if isinstance(val, str) and len(val) > max_value_length:
+            return val[:max_value_length] + '...'
+        elif isinstance(val, dict):
+            return {k: truncate_value(v) for k, v in val.items()}
+        elif isinstance(val, list):
+            return [truncate_value(v) for v in val]
+        else:
+            return val
+
+    try:
+        # If input is a string, try to load as JSON
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        # Truncate long values recursively
+        truncated_data = truncate_value(data)
+
+        if title:
+            print(f"\n===== {title} =====")
+
+        pretty = json.dumps(truncated_data, indent=4, ensure_ascii=False)
+        print(pretty)
+        print("=" * 40)
+
+    except json.JSONDecodeError as e:
+        print("[ERROR] Invalid JSON string.")
+        print(data)
+    except Exception as e:
+        print(f"[ERROR] Unexpected error: {e}")
+
+
+
+import json
+
+def pretty_print_json(data, title=None, max_value_length=0, max_list_length=0):
+    """
+    Pretty-print a JSON string or dict with optional truncation.
+    
+    - max_value_length=0 → no truncation of string values
+    - max_list_length=0 → no truncation of lists
+    """
+
+    def truncate(val):
+        if isinstance(val, str):
+            if max_value_length > 0 and len(val) > max_value_length:
+                return val[:max_value_length] + '...'
+            return val
+        elif isinstance(val, dict):
+            return {k: truncate(v) for k, v in val.items()}
+        elif isinstance(val, list):
+            processed = [truncate(v) for v in val]
+            if max_list_length > 0 and len(processed) > max_list_length:
+                return processed[:max_list_length] + ['...']
+            return processed
+        else:
+            return val
+
+    try:
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        if title:
+            print(f"\n===== {title} =====")
+
+        pretty = json.dumps(truncate(data), indent=4, ensure_ascii=False)
+        print(pretty)
+        print("=" * 40)
+
+    except json.JSONDecodeError:
+        print("[ERROR] Invalid JSON string.")
+        print(data)
+    except Exception as e:
+        print(f"[ERROR] Unexpected error: {e}")
+
+
+
+
+
 
 class TaskTracker:
     def __init__(self, tasks: List[Dict], id_key: str = "id", progress_file: str = "done.json"):
