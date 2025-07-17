@@ -584,7 +584,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                     "variant_key": variant_key,
                     "bg_img": ','.join(extract_valid_urls(bg_imgs_str)),
                     "color": getting_color(variant_key),
-                    "size":  getting_size(variant_key)
+                    "size":  getting_size(variant_key),
                     "length": extract_dimensions(item.get("standard", ""))[0],
                     "width": extract_dimensions(item.get("standard", ""))[1],
                     "height": extract_dimensions(item.get("standard", ""))[2],
@@ -618,7 +618,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
         logger.error(f"Failed to extract variant SKUs and inventory from JS on {product_url}: {e}")
 
 
-async def scrape_product_detail_page(context, product_url: str, semaphore: asyncio.Semaphore) -> Optional[Dict[str, Any]]:
+async def scrape_product_detail_page(context, product_url: str, semaphore: asyncio.Semaphore, context_dict = {}) -> Optional[Dict[str, Any]]:
     product_dict = {}
     # Use a semaphore to limit the number of concurrent detail page scrapes
     async with semaphore:
@@ -642,6 +642,11 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
                 logger.warning(f"Timeout: description not found for {product_url}")
             # Use Playwright's selector to get the description text
             desc_elem = await page.query_selector("div#description-description")
+
+
+            # category = await get_breadcrumb(page, context_dict["category"])
+            category = context_dict["category"]
+            product_dict['category'] = category
             if desc_elem:
                 # Try to find a child div with class containing 'descriptionContainer'
                 child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
@@ -691,6 +696,36 @@ def build_paginated_url(base_url: str, page_num: int) -> str:
     new_query = urlencode(query, doseq=True)
     new_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
     return new_url
+
+
+async def get_breadcrumb(page, category_name="CATEGORY") -> str:
+    """
+    Extracts the breadcrumb trail from the product page.
+    Falls back to 'CATEGORY' if extraction fails.
+    """
+    try:
+        breadcrumb = await page.evaluate("""() => {
+            const containers = Array.from(document.querySelectorAll('div'));
+            const breadcrumbContainer = containers.find(div =>
+                div.innerText.includes('Home') && div.querySelectorAll('a').length > 1
+            );
+
+            if (!breadcrumbContainer) return null;
+
+            const links = Array.from(breadcrumbContainer.querySelectorAll('a'));
+            const filtered = links
+                .map(a => a.textContent.trim())
+                .filter(text => text.toLowerCase() !== 'home');
+
+            return filtered.length ? filtered.join(' / ') : null;
+        }""")
+    except Exception:
+        breadcrumb = None
+
+    # return breadcrumb or category_name
+    return category_name
+
+
 
 
 async def get_max_num_pages(page) -> int:
@@ -775,7 +810,7 @@ async def scrape_multiple_pages(
         detail_tasks = []
         for product in products:
             if product.get('product_url'):
-                detail_tasks.append(scrape_product_detail_page(context, product['product_url'], semaphore))
+                detail_tasks.append(scrape_product_detail_page(context, product['product_url'], semaphore, context_dict={"category": category}))
             else:
                 detail_tasks.append(asyncio.sleep(0, result=None))
         detail_infos = await asyncio.gather(*detail_tasks)
@@ -783,7 +818,8 @@ async def scrape_multiple_pages(
         for product, detail_info in zip(products, detail_infos):
             if detail_info is not None:
                 product.update(detail_info)
-            product.update({"country": country, "category": category})
+            # product.update({"country": country, "category": category})
+            product.update({"country": country})
 
         products = list(map(enrich_variants_with_product_id, products))
         all_products.extend(products)
@@ -836,7 +872,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("pet.json", "r", encoding='utf-8') as f:
+    with open("diff_t.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")

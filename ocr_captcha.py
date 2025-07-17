@@ -9,10 +9,23 @@ import pytesseract
 from playwright.async_api import async_playwright
 import asyncio
 
+
+def truncate_with_ellipsis(s: str, max_length: int = 10) -> str:
+    """
+    截断过长的字符串并添加省略号
+    :param s: 要截断的原始字符串
+    :param max_length: 允许的最大长度（默认10）
+    :return: 截断后的字符串
+    """
+    if len(s) <= max_length:
+        return s
+    return s[:max_length] + '...'
+
+
 # Your captcha-solving function (dummy example)
 async def solve_captcha_from_src(src_url: str) -> str:
     # Download image and run OCR or any logic you use
-    print(f"Solving captcha from: {src_url}")
+    print(f"Solving captcha from: {truncate_with_ellipsis(src_url)}")
 
     save_base64_image(src_url, "captcha.png")
     captcha_txt = get_captcha_text("captcha.png")
