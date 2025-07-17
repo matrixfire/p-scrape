@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-SCRAPED_DB_NAME = os.getenv('SCRAPED_DB_NAME', 'scraped_db')
-SCRAPED_COLLECTION_NAME = os.getenv('SCRAPED_COLLECTION_NAME', 'products_us_test')
+SCRAPED_DB_NAME = os.getenv('SCRAPED_DB_NAME', 'scraped_db_new')
+SCRAPED_COLLECTION_NAME = os.getenv('SCRAPED_COLLECTION_NAME', 'products_us_pet_supply')
 
 def get_scraped_db_config():
     return {
