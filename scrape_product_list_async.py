@@ -330,8 +330,8 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
                 const filteredVariants = variants.filter(v => skusNeedShipping[v.sku.toLowerCase()] === 1);
 
                 const productType = productInfo.productType;
-                const startCountryCode = 'US';
-                const receiverCountryCode = 'US';
+                const startCountryCode = 'CN';
+                const receiverCountryCode = 'CN';
                 const platform = 'shopify';
                 const quantity = 1;
                 const customerCode = window.loginInfoController?.info?.("userId") || "";
