@@ -34,6 +34,44 @@
 }
 
 
+NEW:
+
+{
+  "pid": "cj_12345",
+  "name": "Women's Elegant Cardigan",
+  "price": "18.99",
+  "currency": "USD",
+  "product_url": "https://www.cjdropshipping.com/product/12345",
+  "image_url": "https://example.com/image.jpg",
+  "country": "US",
+  "category": "Women's Clothing",
+  
+  "variants": [
+    {
+      "sku": "abc123",
+      "variant_id": "v1",
+      "cjInventory": 100,
+      "factoryInventory": 200,
+      "price": 18.99,
+      "weight": 250,
+      "weight_unit": "g",
+      "variant_image": "https://example.com/variant1.jpg",
+      "variant_key": "Black-S",
+      "bg_img": "https://example.com/bg1.jpg,https://example.com/bg2.jpg",
+      "color": "Black",
+      "length": "65",
+      "width": "50",
+      "height": "2",
+      "size_unit": "cm",
+
+      "shipping_fee": ...,
+      "shipping_method": ...,
+      "delivery_time": ...
+
+      "description": "This elegant cardigan is perfect for spring and summer...",
+    }
+  ]
+}
 
 
 
