@@ -32,6 +32,38 @@ PRODUCT_LIST_URL = "https://www.cjdropshipping.com/list/wholesale-security-prote
 BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
 
 
+
+async def parse_description_div(page):
+    try:
+        # Wait for the description div to load
+        await page.wait_for_selector('div#description-description', timeout=10000)
+
+        # Get the inner HTML of the div
+        div_html = await page.locator('div#description-description').inner_html()
+
+        # Parse only that portion with BeautifulSoup
+        soup = BeautifulSoup(div_html, 'html.parser')
+
+        # Extract text and images
+        text = soup.get_text(separator='\n', strip=True)
+        images = [img['src'] for img in soup.find_all('img') if img.get('src')]
+
+        # Package and dump as JSON string
+        result = {
+            'text': text,
+            'images': images
+        }
+
+        return json.dumps(result, ensure_ascii=False)
+
+    except Exception as e:
+        print("[ERROR] Failed to parse description div:", e)
+        # Return empty JSON structure as string
+        return json.dumps({'text': '', 'images': []}, ensure_ascii=False)
+
+
+
+
 def transform_packaging_dimensions(input_dict: dict) -> dict:
     new_dict = {k: v for k, v in input_dict.items() if k != '包装尺寸'}
 
@@ -278,103 +310,6 @@ def get_country_data(data_list, target_country="US"):
 
 
 
-async def fetch_logistics_data_individual_(page, product_url: str = ""):
-    """异步抓取当前页面的物流信息（对每个 variant 单独请求）"""
-    try:
-        await page.wait_for_function("window.productDetailData?.stanProducts?.length > 0", timeout=10_000)
-
-        logistics_data = await page.evaluate("""
-        async () => {
-            const variants = window.productDetailData?.stanProducts || [];
-            const productInfo = window.productDetailData;
-            if (!variants.length || !productInfo) return { error: "Missing product data" };
-
-            const productType = productInfo.productType;
-            const startCountryCode = 'US';
-            const receiverCountryCode = 'US';
-            const platform = 'shopify';
-            const quantity = 1;
-            const customerCode = window.loginInfoController?.info?.("userId") || "";
-            const token = window.loginInfoController?.info?.("token") || "";
-
-            const fetchResults = [];
-
-            for (const variant of variants) {
-                const param = {
-                    startCountryCode,
-                    countryCode: receiverCountryCode,
-                    platform,
-                    property: productInfo.property.key,
-                    weight: +variant.packWeight * quantity,
-                    sku: variant.sku,
-                    pid: productInfo.id,
-                    length: variant.long,
-                    width: variant.width,
-                    height: variant.height,
-                    volume: +variant.volume * quantity,
-                    quantity,
-                    customerCode,
-                    skus: [variant.sku],
-                    productType,
-                    supplierId: productType === window.CjProductDetail_type?.$u?.SupplierSelf
-                        ? productInfo.supplierId
-                        : undefined
-                };
-
-                try {
-                    const res = await fetch("https://www.cjdropshipping.com/product-api/assign/batchUnionLogisticsFreightV355", {
-                        method: "POST",
-                        headers: {
-                            "accept": "application/json;charset=utf-8",
-                            "content-type": "application/json;charset=UTF-8",
-                            "token": token
-                        },
-                        body: JSON.stringify([param]),
-                        credentials: "include"
-                    });
-
-                    const contentType = res.headers.get("content-type") || "";
-                    if (!res.ok || !contentType.includes("application/json")) {
-                        const text = await res.text();
-                        fetchResults.push({ error: "Invalid response", preview: text.slice(0, 300), sku: variant.sku });
-                        continue;
-                    }
-
-                    const json = await res.json();
-                    fetchResults.push({ sku: variant.sku, result: json?.data || [] });
-                } catch (e) {
-                    fetchResults.push({ error: "Request failed", detail: e?.toString?.(), sku: variant.sku });
-                }
-            }
-
-            return fetchResults;
-        }
-        """)
-
-        print(f"\n🚚 每个 variant 的物流数据 from {product_url or '[current page]'}:")
-        print("=" * 40)
-
-        for entry in logistics_data:
-            sku = entry.get("sku", "N/A")
-            if "error" in entry:
-                print(f"❌ {sku}: {entry['error']}")
-                if "preview" in entry:
-                    print(f"🔍 预览: {entry['preview']}")
-                continue
-
-            results = entry.get("result", [])
-            print(f"✅ SKU: {sku}")
-            for item in results:
-                print(f"  {item.get('logisticName')}: {item.get('price')}")
-
-        print("=" * 40)
-        return logistics_data
-
-    except Exception as e:
-        print("⚠️ 异常发生:", e)
-        return None
-
-
 async def fetch_logistics_data_individual(page, product_url: str = "", skus_need_shipping_dict: dict = None):
     """异步抓取当前页面的物流信息，仅对 skus_need_shipping_dict 中 value 为 1 的 sku 发起请求"""
     try:
@@ -526,8 +461,6 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
         # await page.wait_for_load_state("networkidle")
 
         
-
-
         # Extract all image links from divs with data-id attribute inside the slides container
         all_image_links = []
         image_divs = await page.query_selector_all('div#slides > div[data-id] > div[data-id]')
@@ -643,26 +576,29 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
             # Use Playwright's selector to get the description text
             desc_elem = await page.query_selector("div#description-description")
 
-
+            other_data = await parse_description_div(page)
             # category = await get_breadcrumb(page, context_dict["category"])
             category = context_dict["category"]
             product_dict['category'] = category
-            if desc_elem:
-                # Try to find a child div with class containing 'descriptionContainer'
-                child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
-                info_dict = await extract_table_items(desc_elem)
-                info_dict = transform_packaging_dimensions(info_dict)
-                if child_elem:
-                    child_text = (await child_elem.inner_text()).strip()
-                    logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
-                    product_dict['description'] = child_text
-                    # product_dict.update(info_dict)
-                    # pretty_print_json(product_dict, "Product Dict", 10, 3)
-                    return product_dict
-            else:
-                # Log a warning if the description div is not found
-                logger.warning(f"No description found for {product_url}")
-                return None
+            # if desc_elem:
+            #     # Try to find a child div with class containing 'descriptionContainer'
+            #     child_elem = await desc_elem.query_selector('div[class*="descriptionContainer"]')
+            #     info_dict = await extract_table_items(desc_elem)
+            #     info_dict = transform_packaging_dimensions(info_dict)
+            #     if child_elem:
+            #         child_text = (await child_elem.inner_text()).strip()
+            #         logger.info(f"\n\n========== Extracted child description for {product_url}: {info_dict} ==========\n\n")
+            #         product_dict['description'] = child_text
+            #         # product_dict.update(info_dict)
+            #         # pretty_print_json(product_dict, "Product Dict", 10, 3)
+            #         # return product_dict
+            # else:
+            #     # Log a warning if the description div is not found
+            #     logger.warning(f"No description found for {product_url}")
+                # return None
+            product_dict['description'] = other_data    
+            return product_dict
+                
         except PlaywrightTimeoutError:
             # Handle timeout errors when loading the page
             logger.error(f"Timeout loading page: {product_url}")
@@ -872,7 +808,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("pet.json", "r", encoding='utf-8') as f:
+    with open("diff_t.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
