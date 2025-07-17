@@ -89,7 +89,13 @@ class DatabaseHandler:
         if not data_list:
             return
 
-        keys = [k for k in data_list[0].keys()]
+        # Use the full set of fields for pallet_stock_price
+        if table_name == 'pallet_stock_price':
+            from export_to_db import TABLE2_FIELDS
+            keys = TABLE2_FIELDS
+        else:
+            keys = [k for k in data_list[0].keys()]
+
         keys_str = ', '.join(f'`{k}`' for k in keys)
 
         values_str_list = []
