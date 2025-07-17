@@ -63,46 +63,42 @@ TABLE2_FIELDS = ['sku', 'id', 'stock', 'price', 'status',
 
 
 
-# Mapping from flattened_data keys to lis_en keys
-MONGO_TO_MYSQL_MAP_T1 = {
-    'product_id': 'sku',
-    'sku': 'id',
-    'name': 'default_product_name_en',
+# Mapping from lis_en keys to flattened_data keys (MySQL to MongoDB)
+MYSQL_TO_MONGO_MAP_T1 = {
+    'sku': 'product_id',
+    'id': 'sku',
+    'default_product_name_en': 'name',
     'multi_product_name_es': 'multi_product_name_es',
-    'description': 'default_product_desc_en',
+    'default_product_desc_en': 'description',
     'multi_product_desc_es': 'multi_product_desc_es',
-    'variant_image': 'main_img',
+    'main_img': 'variant_image',
     'weight': 'weight',
     'weight_unit': 'weight_unit',
     'length': 'length',
     'width': 'width',
     'height': 'height',
-    'size_unit': 'length_unit',
+    'length_unit': 'size_unit',
     'color': 'color',
     'category': 'category',
     'currency': 'currency',
-    'factoryInventory': 'stock',
+    'stock': 'factoryInventory',
     'size': 'size',
     'country': 'country',
-
 }
 
-
-
-MONGO_TO_MYSQL_MAP_T2 = {
-    'product_id': 'sku',
-    'sku': 'id',
-    'cjInventory': 'stock2',
-    'factoryInventory': 'stock',
+MYSQL_TO_MONGO_MAP_T2 = {
+    'sku': 'product_id',
+    'id': 'sku',
+    'stock2': 'cjInventory',
+    'stock': 'factoryInventory',
     'price': 'price',
     'status': 'status',
     'currency': 'currency',
     'country': 'country',
-    'shipping_fee': 'shipping_fee', 
-    'delivery_time': 'delivery_time', 
-    'shipping_method': 'shipping_method'
+    'shipping_fee': 'shipping_fee',
+    'delivery_time': 'delivery_time',
+    'shipping_method': 'shipping_method',
 }
-
 
 
 def build_attribute(row):
@@ -118,39 +114,34 @@ def build_attribute(row):
 
 def map_flattened_to_table1(row: Dict[str, Any]) -> Dict[str, Any]:
     mapped: Dict[str, Any] = {}
-    for k in TABLE1_FIELDS:
-        if k == 'attribute':
-            mapped[k] = build_attribute(row)
-        elif k == 'bg_img':
-            mapped[k] = row.get('bg_img')
+    for mysql_field in TABLE1_FIELDS:
+        if mysql_field == 'attribute':
+            mapped[mysql_field] = build_attribute(row)
+        elif mysql_field == 'bg_img':
+            mapped[mysql_field] = row.get('bg_img')
         else:
-            # Find the mongo key for this lis_en key
-            mongo_key: str | None = None
-            for mk, lk in MONGO_TO_MYSQL_MAP_T1.items():
-                if lk == k:
-                    mongo_key = mk
-                    break
-            if mongo_key:
-                mapped[k] = row.get(mongo_key)
-            else:
-                mapped[k] = row.get(k)
+            mongo_key = MYSQL_TO_MONGO_MAP_T1.get(mysql_field, mysql_field)
+            mapped[mysql_field] = row.get(mongo_key)
     return mapped
 
 
 
-def map_flattened_to_table2(row):
-    mapped = {}
-    for k in TABLE2_FIELDS:
-        # Find the mongo key for this lis_en2 key
-        mongo_key = None
-        for mk, lk in MONGO_TO_MYSQL_MAP_T2.items():
-            if lk == k:
-                mongo_key = mk
-                break
-        if mongo_key:
-            mapped[k] = row.get(mongo_key)
-        else:
-            mapped[k] = row.get(k)
+def map_flattened_to_table2(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Maps a flattened MongoDB document (row) to the MySQL table2 schema.
+
+    Args:
+        row (Dict[str, Any]): The flattened MongoDB document.
+
+    Returns:
+        Dict[str, Any]: A dictionary with keys matching TABLE2_FIELDS and values mapped from the MongoDB document.
+    """
+    mapped: Dict[str, Any] = {}
+    for mysql_field in TABLE2_FIELDS:
+        mongo_key = MYSQL_TO_MONGO_MAP_T2.get(mysql_field, mysql_field)
+        mapped[mysql_field] = row.get(mongo_key)
+    # Debug print for shipping_fee
+    print(f"[DEBUG] shipping_fee in mapped row: {mapped.get('shipping_fee')}")
     return mapped
 
 
@@ -159,70 +150,64 @@ INSERT_MODE = 'both'  # Options: 'product', 'stock', 'both'
 
 
 def main():
+    """
+    Main function to export data from MongoDB to MySQL.
+    Steps:
+    1. Connect to MongoDB.
+    2. Fetch and flatten data from MongoDB.
+    3. Map and print sample records for debugging.
+    4. Batch insert mapped data into MySQL tables.
+    """
     logger.info("Starting MongoDB to MySQL export process...")
+    print("[DEBUG] Connecting to MongoDB...")
     collection = connect_to_mongodb()
     if collection is None:
         logger.error("Failed to connect to MongoDB. Exiting.")
+        print("[DEBUG] MongoDB connection failed. Exiting.")
         return
+
+    print("[DEBUG] Fetching and flattening data from MongoDB...")
     flattened_data = fetch_and_flatten_data(collection)
     if not flattened_data:
         logger.error("No data retrieved. Exiting.")
+        print("[DEBUG] No data retrieved from MongoDB. Exiting.")
         return
-    # Map and print the first 3 mapped records for debugging
-    for i, row in enumerate(flattened_data[:2]):
-        mapped = map_flattened_to_table1(row)
-        mapped_p = map_flattened_to_table2(row)
-        print(f"\nMapped product record {i+1}: {mapped}\nMapped stock/price record {i+1}: {mapped_p}\n\n\n")
-    success_count = 0
-    fail_count = 0
-    success_count_p = 0
-    fail_count_p = 0
-    print(f"length: {len(flattened_data)}"+'\n'*100)
-    # for i, row in enumerate(flattened_data):
-    #     # time.sleep(3)
-    #     if INSERT_MODE in ('product', 'both'):
-    #         mapped = map_flattened_to_table1(row)
-    #         try:
-    #             insert_product_data(mapped)
-    #             logger.info(f"[product] Inserted row {i+1} into MySQL: {mapped.get('sku', mapped.get('id', 'N/A'))}")
-    #             success_count += 1
-    #         except Exception as e:
-    #             logger.error(f"[product] Failed to insert row {i+1}: {e}\nData: {mapped}")
-    #             fail_count += 1
-    #     if INSERT_MODE in ('stock', 'both'):
-    #         mapped_p = map_flattened_to_table2(row)
-    #         try:
-    #             insert_stock_price(mapped_p)
-    #             logger.info(f"[stock] Inserted row {i+1} into MySQL: {mapped_p.get('sku', mapped_p.get('id', 'N/A'))}")
-    #             success_count_p += 1
-    #         except Exception as e:
-    #             logger.error(f"[stock] Failed to insert row {i+1}: {e}\nData: {mapped_p}")
-    #             fail_count_p += 1
-    # if INSERT_MODE in ('product', 'both'):
-    #     logger.info(f"[product] Inserted {success_count} rows into MySQL. Failed: {fail_count}")
-    # if INSERT_MODE in ('stock', 'both'):
-    #     logger.info(f"[stock] Inserted {success_count_p} rows into MySQL. Failed: {fail_count_p}")
+
+    # Map and print the first 2 mapped records for debugging
+    print("[DEBUG] Mapping and printing first 2 records for verification...")
+    for idx, flattened_row in enumerate(flattened_data[:2]):
+        mapped_product = map_flattened_to_table1(flattened_row)
+        mapped_stock = map_flattened_to_table2(flattened_row)
+        print(f"\nMapped product record {idx+1}: {mapped_product}\nMapped stock/price record {idx+1}: {mapped_stock}\n\n\n")
+
+    print(f"[DEBUG] Total records to process: {len(flattened_data)}\n" + '\n'*2)
 
     BATCH_SIZE = 100
+    print(f"[DEBUG] Inserting data in batches of {BATCH_SIZE}...")
 
-    for i in range(0, len(flattened_data), BATCH_SIZE):
-        batch = flattened_data[i:i+BATCH_SIZE]
+    for batch_start in range(0, len(flattened_data), BATCH_SIZE):
+        batch = flattened_data[batch_start:batch_start+BATCH_SIZE]
+        print(f"[DEBUG] Processing batch {batch_start//BATCH_SIZE+1} (records {batch_start+1} to {batch_start+len(batch)})")
         
         if INSERT_MODE in ('product', 'both'):
             try:
-                product_batch = [map_flattened_to_table1(row) for row in batch]
+                product_batch = [map_flattened_to_table1(flattened_row) for flattened_row in batch]
+                print(f"[DEBUG] Inserting product batch of size {len(product_batch)}...")
                 insert_many_product_data(product_batch)
-                logger.info(f"[product] Batch {i//BATCH_SIZE+1}: Inserted {len(product_batch)} rows.")
-            except Exception as e:
-                logger.error(f"[product] Failed to insert batch: {e}")
+                logger.info(f"[product] Batch {batch_start//BATCH_SIZE+1}: Inserted {len(product_batch)} rows.")
+            except Exception as exc:
+                logger.error(f"[product] Failed to insert batch: {exc}")
+                print(f"[DEBUG] Exception during product batch insert: {exc}")
 
         if INSERT_MODE in ('stock', 'both'):
             try:
-                stock_batch = [map_flattened_to_table2(row) for row in batch]
+                stock_batch = [map_flattened_to_table2(flattened_row) for flattened_row in batch]
+                print(f"[DEBUG] Inserting stock batch of size {len(stock_batch)}...")
                 insert_many_stock_price(stock_batch)
-                logger.info(f"[stock] Batch {i//BATCH_SIZE+1}: Inserted {len(stock_batch)} rows.")
-            except Exception as e:
-                logger.error(f"[stock] Failed to insert stock batch: {e}")
+                logger.info(f"[stock] Batch {batch_start//BATCH_SIZE+1}: Inserted {len(stock_batch)} rows.")
+            except Exception as exc:
+                logger.error(f"[stock] Failed to insert stock batch: {exc}")
+                print(f"[DEBUG] Exception during stock batch insert: {exc}")
 
 
 if __name__ == "__main__":
