@@ -421,7 +421,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                         "cjInventory": int(inv.get("cjInventory") or 0),
                         "factoryInventory": int(inv.get("factoryInventory") or 0)
                     }
-
+            skus_need_shipping_dict = {} # {"sku1": 0, "sku2": 1}
             # Match each product's id with inventory vid
             for item in product_data:
                 sku = item.get("sku")
@@ -431,33 +431,37 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                 variant_img = item.get("image").encode('utf-8').decode('unicode_escape')
                 variant_key = item.get("variantKey", "")
 
+                inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
+                bg_imgs_str = ','.join(all_image_links)
+                variant_details = {
+                    "sku": f"{sku.lower()}",
+                    "variant_id": variant_id,
+                    "cjInventory": inventory_info["cjInventory"],
+                    "factoryInventory": inventory_info["factoryInventory"],
+                    "price": variant_price,
+                    "weight": variant_weight,
+                    "weight_unit": "g",
+                    "variant_image": variant_img,
+                    "variant_key": variant_key,
+                    "bg_img": ','.join(extract_valid_urls(bg_imgs_str)),
+                    "color": getting_color(variant_key),
+                    "length": extract_dimensions(item.get("standard", ""))[0],
+                    "width": extract_dimensions(item.get("standard", ""))[1],
+                    "height": extract_dimensions(item.get("standard", ""))[2],
+                    "size_unit": "cm",
+                    "shipping_fee": "",
+                    "shipping_method": "",
+                    "delivery_time": "",
+                }
+                # print(variant_details)
+                if int(variant_details['cjInventory']) >= 5:
+                    skus_need_shipping_dict[variant_details['sku']] = 1
+                else:
+                    skus_need_shipping_dict[variant_details['sku']] = 0
+                    
 
-                if sku:
-                    inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
-                    bg_imgs_str = ','.join(all_image_links)
-                    variant_details = {
-                        "sku": f"{sku.lower()}",
-                        "variant_id": variant_id,
-                        "cjInventory": inventory_info["cjInventory"],
-                        "factoryInventory": inventory_info["factoryInventory"],
-                        "price": variant_price,
-                        "weight": variant_weight,
-                        "weight_unit": "g",
-                        "variant_image": variant_img,
-                        "variant_key": variant_key,
-                        "bg_img": ','.join(extract_valid_urls(bg_imgs_str)),
-                        "color": getting_color(variant_key),
-                        "length": extract_dimensions(item.get("standard", ""))[0],
-                        "width": extract_dimensions(item.get("standard", ""))[1],
-                        "height": extract_dimensions(item.get("standard", ""))[2],
-                        "size_unit": "cm",
-                        "shipping_fee": "",
-                        "shipping_method": "",
-                        "delivery_time": "",
 
-                    }
-                    # print(variant_details)
-                    variants.append(variant_details)
+                variants.append(variant_details)
 
             product_dict["variants"] = variants
             # logger.info(f"Extracted {len(variants)} variants with SKUs and inventory from {product_url}")
