@@ -253,6 +253,15 @@ def getting_color(s):
 
     return color_name
 
+def getting_size(s):
+    try:
+        first_part = s.split("-")[1].lower()
+        size_name = first_part
+    except:
+        size_name = "NO SIZE"
+
+    return size_name
+
 
 def get_country_data(data_list, target_country="US"):
     for item in data_list:
@@ -575,6 +584,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                     "variant_key": variant_key,
                     "bg_img": ','.join(extract_valid_urls(bg_imgs_str)),
                     "color": getting_color(variant_key),
+                    "size":  getting_size(variant_key)
                     "length": extract_dimensions(item.get("standard", ""))[0],
                     "width": extract_dimensions(item.get("standard", ""))[1],
                     "height": extract_dimensions(item.get("standard", ""))[2],
