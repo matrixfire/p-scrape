@@ -331,7 +331,7 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
 
                 const productType = productInfo.productType;
                 const startCountryCode = 'US';
-                const receiverCountryCode = US';
+                const receiverCountryCode = 'US';
                 const platform = 'shopify';
                 const quantity = 1;
                 const customerCode = window.loginInfoController?.info?.("userId") || "";
@@ -862,13 +862,14 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("diff_t.json", "r", encoding='utf-8') as f:
+    with open("diff_cn.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
     
     COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-    COUNTRY = "US"
+    # COUNTRY = "US"
+    COUNTRY = "CN"
 
     urls_ = [(d['name'], d['url'])for d in tracker.get_pending_tasks()]
     urls = [(t[0], set_country_in_url(t[1], COUNTRY)) for t in urls_]
