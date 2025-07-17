@@ -20,6 +20,7 @@ from typing import Any, List, Tuple
 from Levenshtein_get_color import get_color_name
 from ocr_captcha import handle_captcha
 from handle_imgs import extract_valid_urls
+from choose_shipping import extract_shipping_info
 
 # ========== Logging setup ==========
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
@@ -383,9 +384,6 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
 
                 // 过滤 variants，只保留需要 shipping 的 sku
                 const filteredVariants = variants.filter(v => skusNeedShipping[v.sku.toLowerCase()] === 1);
-                console.log(filteredVariants.length)
-
-                const filteredVariants_ = variants.slice(0, 2)
 
                 const productType = productInfo.productType;
                 const startCountryCode = 'US';
@@ -399,9 +397,9 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
 
                 for (const variant of filteredVariants) {
                     const param = {
-                        startCountryCode,
-                        countryCode: receiverCountryCode,
-                        platform,
+                        startcountrycode: startCountryCode,
+                        countrycode: receiverCountryCode,
+                        platform: platform,
                         property: productInfo.property.key,
                         weight: +variant.packWeight * quantity,
                         sku: variant.sku,
@@ -410,14 +408,22 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
                         width: variant.width,
                         height: variant.height,
                         volume: +variant.volume * quantity,
-                        quantity,
-                        customerCode,
+                        quantity: quantity,
+                        customercode: customerCode,
                         skus: [variant.sku],
-                        productType,
-                        supplierId: productType === window.CjProductDetail_type?.$u?.SupplierSelf
+                        producttype: productType,
+                        supplierid: productType === window.CjProductDetail_type?.$u?.SupplierSelf
                             ? productInfo.supplierId
                             : undefined
                     };
+
+                    // Make sure all keys in param are lowercased
+                    const lowerParam = {};
+                    for (const k in param) {
+                        if (Object.hasOwn(param, k)) {
+                            lowerParam[k.toLowerCase()] = param[k];
+                        }
+                    }
 
                     try {
                         const res = await fetch("https://www.cjdropshipping.com/product-api/assign/batchUnionLogisticsFreightV355", {
@@ -427,25 +433,36 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
                                 "content-type": "application/json;charset=UTF-8",
                                 "token": token
                             },
-                            body: JSON.stringify([param]),
+                            body: JSON.stringify([lowerParam]),
                             credentials: "include"
                         });
 
                         const contentType = res.headers.get("content-type") || "";
                         if (!res.ok || !contentType.includes("application/json")) {
                             const text = await res.text();
-                            fetchResults.push({ error: "Invalid response", preview: text.slice(0, 300), sku: variant.sku });
+                            // Lowercase keys for error object
+                            fetchResults.push({ error: "Invalid response", preview: text.slice(0, 300), sku: variant.sku.toLowerCase() });
                             continue;
                         }
 
                         const json = await res.json();
-                        fetchResults.push({ sku: variant.sku, result: json?.data || [] });
+                        // Lowercase keys for result object
+                        fetchResults.push({ sku: variant.sku.toLowerCase(), result: json?.data || [] });
                     } catch (e) {
-                        fetchResults.push({ error: "Request failed", detail: e?.toString?.(), sku: variant.sku });
+                        fetchResults.push({ error: "Request failed", detail: e?.toString?.(), sku: variant.sku.toLowerCase() });
                     }
                 }
 
-                return fetchResults;
+                // Lowercase all keys in each result object
+                return fetchResults.map(obj => {
+                    const lowerObj = {};
+                    for (const k in obj) {
+                        if (Object.hasOwn(obj, k)) {
+                            lowerObj[k.toLowerCase()] = obj[k];
+                        }
+                    }
+                    return lowerObj;
+                });
             }""",
             skus_need_shipping_dict  # 👈 这里是传入的 Python dict，会作为 skusNeedShipping 出现在 JS 中
         )
@@ -454,6 +471,7 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
         print("=" * 40)
 
         for entry in logistics_data:
+            # All keys are lowercased now
             sku = entry.get("sku", "N/A")
             if "error" in entry:
                 print(f"❌ {sku}: {entry['error']}")
@@ -464,7 +482,10 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
             results = entry.get("result", [])
             print(f"✅ SKU: {sku}")
             for item in results:
-                print(f"  {item.get('logisticName')}: {item.get('price')}")
+                # Try to print lowercased keys for item as well
+                logistic_name = item.get('logisticname', item.get('logisticName'))
+                price = item.get('price', "")
+                print(f"  {logistic_name}: {price}")
 
         print("=" * 40)
         return logistics_data
@@ -573,6 +594,10 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                 variants.append(variant_details)
             print(skus_need_shipping_dict)
             logistics = await fetch_logistics_data_individual(page, skus_need_shipping_dict=skus_need_shipping_dict)
+            shipping_result = extract_shipping_info(skus_need_shipping_dict, logistics)
+
+            pretty_print_json(logistics, "LOGISTICS INFO", 10, 2)
+            pretty_print_json(shipping_result, "Shipping Choice")
             product_dict["variants"] = variants
             # logger.info(f"Extracted {len(variants)} variants with SKUs and inventory from {product_url}")
         else:
