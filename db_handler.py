@@ -121,7 +121,7 @@ db_config = {
     "host": "gz-cdb-qex076ap.sql.tencentcdb.com",
     "user": "root",
     "password": "shgj123456",
-    "database": "rpa",
+    "database": "test",
     "port": 28745,
 }
 

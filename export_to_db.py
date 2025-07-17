@@ -52,7 +52,7 @@ def fetch_and_flatten_data(collection: Collection) -> List[dict]:
 
 TABLE1_FIELDS = ['sku','id','default_product_name_en','multi_product_name_es',
 'default_product_desc_en','multi_product_desc_es','main_img','bg_img','weight',
-'weight_unit','length','width','height','length_unit','color','attribute','category', 'size', 'country']
+'weight_unit','length','width','height','length_unit','color','attribute','category', 'size', 'country', 'other_data']
 
 
 # For insert_stock_price, map to lis_en2
@@ -84,6 +84,7 @@ MYSQL_TO_MONGO_MAP_T1 = {
     'stock': 'factoryInventory',
     'size': 'size',
     'country': 'country',
+    'other_data': 'description'
 }
 
 MYSQL_TO_MONGO_MAP_T2 = {
