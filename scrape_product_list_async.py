@@ -595,9 +595,10 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
             print(skus_need_shipping_dict)
             logistics = await fetch_logistics_data_individual(page, skus_need_shipping_dict=skus_need_shipping_dict)
             shipping_result = extract_shipping_info(skus_need_shipping_dict, logistics)
-
-            pretty_print_json(logistics, "LOGISTICS INFO", 10, 2)
-            pretty_print_json(shipping_result, "Shipping Choice")
+            for variant_details in variants:
+                variant_details.update(shipping_result[variant_details["sku"].lower()])
+            # pretty_print_json(logistics, "LOGISTICS INFO", 10, 2)
+            # pretty_print_json(shipping_result, "Shipping Choice")
             product_dict["variants"] = variants
             # logger.info(f"Extracted {len(variants)} variants with SKUs and inventory from {product_url}")
         else:
@@ -817,7 +818,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
                 save_one_product_to_mongo(collection, product)
             tracker.mark_done({'name':url_obj[0], 'url': url_obj[1].split('?')[0]})
 
-        await asyncio.sleep(1000) #testing
+        await asyncio.sleep(10) #testing
 
         await browser.close()
         return all_results
