@@ -268,7 +268,7 @@ def get_country_data(data_list, target_country="US"):
 
 
 
-async def fetch_logistics_data_individual(page, product_url: str = ""):
+async def fetch_logistics_data_individual_(page, product_url: str = ""):
     """异步抓取当前页面的物流信息（对每个 variant 单独请求）"""
     try:
         await page.wait_for_function("window.productDetailData?.stanProducts?.length > 0", timeout=10_000)
@@ -365,6 +365,115 @@ async def fetch_logistics_data_individual(page, product_url: str = ""):
         return None
 
 
+async def fetch_logistics_data_individual(page, product_url: str = "", skus_need_shipping_dict: dict = None):
+    """异步抓取当前页面的物流信息，仅对 skus_need_shipping_dict 中 value 为 1 的 sku 发起请求"""
+    try:
+        if not skus_need_shipping_dict:
+            print("⚠️ 未提供 sku 列表，跳过抓取")
+            return None
+
+        await page.wait_for_function("window.productDetailData?.stanProducts?.length > 0", timeout=10_000)
+
+        # evaluate 中传入 skus_need_shipping_dict 参数
+        logistics_data = await page.evaluate(
+            """async (skusNeedShipping) => {
+                const variants = window.productDetailData?.stanProducts || [];
+                const productInfo = window.productDetailData;
+                if (!variants.length || !productInfo) return { error: "Missing product data" };
+
+                // 过滤 variants，只保留需要 shipping 的 sku
+                const filteredVariants = variants.filter(v => skusNeedShipping[v.sku.toLowerCase()] === 1);
+                console.log(filteredVariants.length)
+
+                const filteredVariants_ = variants.slice(0, 2)
+
+                const productType = productInfo.productType;
+                const startCountryCode = 'US';
+                const receiverCountryCode = 'US';
+                const platform = 'shopify';
+                const quantity = 1;
+                const customerCode = window.loginInfoController?.info?.("userId") || "";
+                const token = window.loginInfoController?.info?.("token") || "";
+
+                const fetchResults = [];
+
+                for (const variant of filteredVariants) {
+                    const param = {
+                        startCountryCode,
+                        countryCode: receiverCountryCode,
+                        platform,
+                        property: productInfo.property.key,
+                        weight: +variant.packWeight * quantity,
+                        sku: variant.sku,
+                        pid: productInfo.id,
+                        length: variant.long,
+                        width: variant.width,
+                        height: variant.height,
+                        volume: +variant.volume * quantity,
+                        quantity,
+                        customerCode,
+                        skus: [variant.sku],
+                        productType,
+                        supplierId: productType === window.CjProductDetail_type?.$u?.SupplierSelf
+                            ? productInfo.supplierId
+                            : undefined
+                    };
+
+                    try {
+                        const res = await fetch("https://www.cjdropshipping.com/product-api/assign/batchUnionLogisticsFreightV355", {
+                            method: "POST",
+                            headers: {
+                                "accept": "application/json;charset=utf-8",
+                                "content-type": "application/json;charset=UTF-8",
+                                "token": token
+                            },
+                            body: JSON.stringify([param]),
+                            credentials: "include"
+                        });
+
+                        const contentType = res.headers.get("content-type") || "";
+                        if (!res.ok || !contentType.includes("application/json")) {
+                            const text = await res.text();
+                            fetchResults.push({ error: "Invalid response", preview: text.slice(0, 300), sku: variant.sku });
+                            continue;
+                        }
+
+                        const json = await res.json();
+                        fetchResults.push({ sku: variant.sku, result: json?.data || [] });
+                    } catch (e) {
+                        fetchResults.push({ error: "Request failed", detail: e?.toString?.(), sku: variant.sku });
+                    }
+                }
+
+                return fetchResults;
+            }""",
+            skus_need_shipping_dict  # 👈 这里是传入的 Python dict，会作为 skusNeedShipping 出现在 JS 中
+        )
+
+        print(f"\n🚚 每个 variant 的物流数据 from {product_url or '[current page]'}:")
+        print("=" * 40)
+
+        for entry in logistics_data:
+            sku = entry.get("sku", "N/A")
+            if "error" in entry:
+                print(f"❌ {sku}: {entry['error']}")
+                if "preview" in entry:
+                    print(f"🔍 预览: {entry['preview']}")
+                continue
+
+            results = entry.get("result", [])
+            print(f"✅ SKU: {sku}")
+            for item in results:
+                print(f"  {item.get('logisticName')}: {item.get('price')}")
+
+        print("=" * 40)
+        return logistics_data
+
+    except Exception as e:
+        print("⚠️ 异常发生:", e)
+        return None
+
+
 
 
 def extract_dimensions(s: str) -> tuple:
@@ -386,7 +495,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
         variant_inventory_data = await page.evaluate("() => window.productDetailData?.variantInventory || []")
         # await page.wait_for_load_state("networkidle")
 
-        logistics = await fetch_logistics_data_individual(page)
+        
 
 
         # Extract all image links from divs with data-id attribute inside the slides container
@@ -462,7 +571,8 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
 
 
                 variants.append(variant_details)
-
+            print(skus_need_shipping_dict)
+            logistics = await fetch_logistics_data_individual(page, skus_need_shipping_dict=skus_need_shipping_dict)
             product_dict["variants"] = variants
             # logger.info(f"Extracted {len(variants)} variants with SKUs and inventory from {product_url}")
         else:
@@ -681,6 +791,8 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
             for product in products:
                 save_one_product_to_mongo(collection, product)
             tracker.mark_done({'name':url_obj[0], 'url': url_obj[1].split('?')[0]})
+
+        await asyncio.sleep(1000) #testing
 
         await browser.close()
         return all_results
