@@ -33,7 +33,7 @@ BASE_URL = PRODUCT_LIST_URL.split("/list/")[0] + "/"
 
 
 
-async def parse_description_div(page):
+async def parse_description_div(page, product_url=''):
     try:
         # Wait for the description div to load
         await page.wait_for_selector('div#description-description', timeout=10000)
@@ -50,6 +50,7 @@ async def parse_description_div(page):
 
         # Package and dump as JSON string
         result = {
+            'product_url': product_url, 
             'text': text,
             'images': images
         }
@@ -59,8 +60,7 @@ async def parse_description_div(page):
     except Exception as e:
         print("[ERROR] Failed to parse description div:", e)
         # Return empty JSON structure as string
-        return json.dumps({'text': '', 'images': []}, ensure_ascii=False)
-
+        return json.dumps({'product_url': product_url, 'text': '', 'images': []}, ensure_ascii=False)
 
 
 
@@ -533,7 +533,6 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                     skus_need_shipping_dict[variant_details['sku']] = 0
                     
 
-
                 variants.append(variant_details)
             print(skus_need_shipping_dict)
             logistics = await fetch_logistics_data_individual(page, skus_need_shipping_dict=skus_need_shipping_dict)
@@ -576,9 +575,12 @@ async def scrape_product_detail_page(context, product_url: str, semaphore: async
             # Use Playwright's selector to get the description text
             desc_elem = await page.query_selector("div#description-description")
 
-            other_data = await parse_description_div(page)
-            # category = await get_breadcrumb(page, context_dict["category"])
-            category = context_dict["category"]
+            other_data = await parse_description_div(page, product_url)
+
+            category = await extract_breadcrumb(page)
+            if category is None:
+                category = context_dict["category"]
+            # category = context_dict["category"]
             product_dict['category'] = category
             # if desc_elem:
             #     # Try to find a child div with class containing 'descriptionContainer'
@@ -634,7 +636,7 @@ def build_paginated_url(base_url: str, page_num: int) -> str:
     return new_url
 
 
-async def get_breadcrumb(page, category_name="CATEGORY") -> str:
+async def get_breadcrumb_(page, category_name="CATEGORY") -> str:
     """
     Extracts the breadcrumb trail from the product page.
     Falls back to 'CATEGORY' if extraction fails.
@@ -660,6 +662,54 @@ async def get_breadcrumb(page, category_name="CATEGORY") -> str:
 
     # return breadcrumb or category_name
     return category_name
+
+
+async def get_breadcrumb(page, category_name="CATEGORY") -> str:
+    """
+    Extracts the breadcrumb trail from the product page.
+    Falls back to 'CATEGORY' if extraction fails.
+    """
+    try:
+        # Wait for the selector to exist to avoid NoneType errors
+        await page.wait_for_selector('div#vue-search-filter div.select-item', timeout=5000)
+        div_html = await page.locator('div#vue-search-filter div.select-item').inner_html()
+        soup = BeautifulSoup(div_html, "lxml")
+        # Defensive: .select() may return empty list
+        parts = [a.get_text(strip=True).rstrip(">").strip() for a in soup.select("a.filter-span")]
+        if not parts:
+            return category_name
+        combined_path_category = " / ".join(parts)
+        if not combined_path_category.strip():
+            return category_name
+        return combined_path_category
+    except Exception as e:
+        return category_name
+    
+
+async def extract_breadcrumb(page):
+    try:
+        result = await page.evaluate("""() => {
+            // Find all <div> elements whose class includes "bread"
+            const breadcrumbDivs = Array.from(document.querySelectorAll("div[class*='bread']"));
+
+            for (const div of breadcrumbDivs) {
+                const links = Array.from(div.querySelectorAll("a"));
+                if (links.length > 1 && links[0].textContent.trim().toLowerCase() === "home") {
+                    // Skip the first "Home" link, join the rest with "/"
+                    return links
+                        .slice(1)
+                        .map(a => a.textContent.trim())
+                        .join("/");
+                }
+            }
+            return null;
+        }""")
+
+        return result if result else None
+    except Exception as e:
+        print(f"[ERROR] Failed to extract breadcrumb: {e}")
+        return None
+
 
 
 
@@ -755,7 +805,10 @@ async def scrape_multiple_pages(
             if detail_info is not None:
                 product.update(detail_info)
             # product.update({"country": country, "category": category})
+            # category = await get_breadcrumb(page, category)
+            print("FOUND CATEGORY", category)
             product.update({"country": country})
+            pretty_print_json(product, "AFTER scrape_multiple_pages", 30, 5)
 
         products = list(map(enrich_variants_with_product_id, products))
         all_products.extend(products)
@@ -808,7 +861,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("diff_t.json", "r", encoding='utf-8') as f:
+    with open("diff_tt.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
