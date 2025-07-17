@@ -52,13 +52,13 @@ def fetch_and_flatten_data(collection: Collection) -> List[dict]:
 
 TABLE1_FIELDS = ['sku','id','default_product_name_en','multi_product_name_es',
 'default_product_desc_en','multi_product_desc_es','main_img','bg_img','weight',
-'weight_unit','length','width','height','length_unit','color','attribute','category']
+'weight_unit','length','width','height','length_unit','color','attribute','category', 'size', 'country']
 
 
 # For insert_stock_price, map to lis_en2
 TABLE2_FIELDS = ['sku', 'id', 'stock', 'price', 'status', 
 'update_time', 'stock2', 'currency', 'country',
-'color']
+'color', 'shipping_fee', 'delivery_time', 'shipping_method']
 
 
 
@@ -71,7 +71,7 @@ MONGO_TO_MYSQL_MAP_T1 = {
     'multi_product_name_es': 'multi_product_name_es',
     'description': 'default_product_desc_en',
     'multi_product_desc_es': 'multi_product_desc_es',
-    'image_url': 'main_img',
+    'variant_image': 'main_img',
     'weight': 'weight',
     'weight_unit': 'weight_unit',
     'length': 'length',
@@ -81,7 +81,10 @@ MONGO_TO_MYSQL_MAP_T1 = {
     'color': 'color',
     'category': 'category',
     'currency': 'currency',
-    'factoryInventory': 'stock'
+    'factoryInventory': 'stock',
+    'size': 'size',
+    'country': 'country',
+
 }
 
 
@@ -94,7 +97,10 @@ MONGO_TO_MYSQL_MAP_T2 = {
     'price': 'price',
     'status': 'status',
     'currency': 'currency',
-    'country': 'country'
+    'country': 'country',
+    'shipping_fee': 'shipping_fee', 
+    'delivery_time': 'delivery_time', 
+    'shipping_method': 'shipping_method'
 }
 
 

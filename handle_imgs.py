@@ -12,7 +12,7 @@ MAX_RETRIES = 5
 
 
 
-def extract_valid_urls(text):
+def extract_valid_urls(text: str) -> list[str]:
     """
     Extracts only valid URLs (starting with http/https) from a comma-separated string.
     """
