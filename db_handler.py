@@ -128,9 +128,13 @@ lis_en = [
     'length','width','height','length_unit','color','attribute','category'
 ]
 
+TABLE1_FIELDS = ['sku','id','default_product_name_en','multi_product_name_es',
+'default_product_desc_en','multi_product_desc_es','main_img','bg_img','weight',
+'weight_unit','length','width','height','length_unit','color','attribute','category', 'size', 'country']
+
 
 def insert_product_data(dic: dict):
-    data = {k: dic[k] for k in lis_en if k in dic and dic[k] not in [None, '']}
+    data = {k: dic[k] for k in TABLE1_FIELDS if k in dic and dic[k] not in [None, '']}
     db_handler.insert('pallet_product_data', data)
 
 def insert_stock_price(dic_p: dict):
@@ -165,7 +169,7 @@ def insert_many_product_data(rows: list[dict]):
     if not rows:
         return
     data_list = [
-        {k: row[k] for k in lis_en if k in row and row[k] not in [None, '']}
+        {k: row[k] for k in TABLE1_FIELDS if k in row and row[k] not in [None, '']}
         for row in rows
     ]
     db_handler.insert_many('pallet_product_data', data_list)
