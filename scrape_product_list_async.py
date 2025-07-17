@@ -330,8 +330,8 @@ async def fetch_logistics_data_individual(page, product_url: str = "", skus_need
                 const filteredVariants = variants.filter(v => skusNeedShipping[v.sku.toLowerCase()] === 1);
 
                 const productType = productInfo.productType;
-                const startCountryCode = 'CN';
-                const receiverCountryCode = 'CN';
+                const startCountryCode = 'US';
+                const receiverCountryCode = US';
                 const platform = 'shopify';
                 const quantity = 1;
                 const customerCode = window.loginInfoController?.info?.("userId") || "";
@@ -459,11 +459,12 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
         product_data = await page.evaluate("() => window.productDetailData?.stanProducts || []")
         variant_inventory_data = await page.evaluate("() => window.productDetailData?.variantInventory || []")
         # await page.wait_for_load_state("networkidle")
-
+        print(type(variant_inventory_data), "*"*100)
         
         # Extract all image links from divs with data-id attribute inside the slides container
         all_image_links = []
         image_divs = await page.query_selector_all('div#slides > div[data-id] > div[data-id]')
+        
         for div in image_divs:
             data_id = await div.get_attribute('data-id')
             if data_id:
@@ -853,7 +854,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
                 save_one_product_to_mongo(collection, product)
             tracker.mark_done({'name':url_obj[0], 'url': url_obj[1].split('?')[0]})
 
-        await asyncio.sleep(10) #testing
+        await asyncio.sleep(10111) #testing
 
         await browser.close()
         return all_results
@@ -861,7 +862,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("diff_tt.json", "r", encoding='utf-8') as f:
+    with open("diff_t.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
