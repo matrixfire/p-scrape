@@ -97,14 +97,16 @@ def get_country_from_url(url: str) -> str:
 
 def set_country_in_url(url: str, country: str) -> str:
     """
-    Set or update the 'from' query parameter in the given URL with the specified country.
-
+    Set or update the 'from' query parameter in the given URL with the specified country,
+    and ensure '&verifiedWarehouse=1' is present.
     """
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
 
     # Set or update the 'from' parameter
     query['from'] = [country]
+    # Add or update the 'verifiedWarehouse' parameter
+    query['verifiedWarehouse'] = ['1']
 
     # Encode query parameters back into URL
     new_query = urlencode(query, doseq=True)
@@ -862,7 +864,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("diff_cn.json", "r", encoding='utf-8') as f:
+    with open("diff_cn2.json", "r", encoding='utf-8') as f:
         tasks = json.load(f)
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
