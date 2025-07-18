@@ -85,7 +85,8 @@ class DatabaseHandler:
             traceback.print_exc()
             print(query)
 
-    def insert_many(self, table_name, data_list):
+    def insert_many_(self, table_name, data_list):
+        '''INSERT IGNORE WAY'''
         if not data_list:
             return
 
@@ -113,6 +114,54 @@ class DatabaseHandler:
             print("[ERROR] Bulk insert failed.")
             traceback.print_exc()
 
+
+    def insert_many(self, table_name, data_list):
+        '''ON DUPLICATE KEY UPDATE WAY'''
+        if not data_list:
+            return
+
+        # Use the full set of fields for pallet_stock_price
+        if table_name == 'pallet_stock_price':
+            from export_to_db import TABLE2_FIELDS
+            keys = TABLE2_FIELDS
+        else:
+            keys = [k for k in data_list[0].keys()]
+
+        keys_str = ', '.join(f'`{k}`' for k in keys)
+
+        values_str_list = []
+        for data in data_list:
+            values = [self.escape_value(data.get(k)) for k in keys]
+            values_str = '(' + ', '.join(values) + ')'
+            values_str_list.append(values_str)
+
+        # Build ON DUPLICATE KEY UPDATE part
+        # Assume the first key is the primary/unique key (e.g., 'sku' or 'id')
+        # Do not update the key fields themselves
+        key_fields = []
+        if table_name == 'pallet_stock_price':
+            # Try to infer unique keys for this table
+            key_fields = ['sku', 'id']
+        elif table_name == 'pallet_product_data':
+            key_fields = ['sku', 'id']
+        # Remove any key fields not present in keys
+        key_fields = [k for k in key_fields if k in keys]
+        update_fields = [
+            f"`{k}`=VALUES(`{k}`)" for k in keys if k not in key_fields
+        ]
+        update_str = ', '.join(update_fields)
+
+        query = (
+            f"INSERT INTO {table_name} ({keys_str}) VALUES {', '.join(values_str_list)} "
+            f"ON DUPLICATE KEY UPDATE {update_str};"
+        )
+        print(f"[DEBUG] Multi-row Upsert Query:\n{query[:500]}...")  # truncate for long queries
+
+        try:
+            self.execute(query)
+        except Exception as e:
+            print("[ERROR] Bulk upsert failed.")
+            traceback.print_exc()
 
 
 
