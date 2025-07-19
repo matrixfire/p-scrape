@@ -1,6 +1,6 @@
 import pandas as pd
 from pymongo import MongoClient
-from config import get_scraped_db_config
+from config import get_scraped_mongodb_config
 from utils import flatten_dict
 import logging
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def connect_to_mongodb():
     """Connect to MongoDB using the scraped database configuration"""
-    config = get_scraped_db_config()
+    config = get_scraped_mongodb_config()
     try:
         client = MongoClient(config['MONGO_URI'])
         db = client[config['DB_NAME']]
