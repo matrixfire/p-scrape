@@ -7,7 +7,7 @@ from unicodedata import category
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 from cj_login import login_and_get_context, nonlogin_and_get_context, extract_category_paths_from_page, handle_login_if_required
-from config import get_scraped_db_config
+from config import get_scraped_mongodb_config, tasks_json, cj_config
 from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
@@ -116,7 +116,7 @@ def set_country_in_url(url: str, country: str) -> str:
 
 # ========== MongoDB helpers ==========
 def init_mongo_scraped() -> Optional[Collection]:
-    config = get_scraped_db_config()
+    config = get_scraped_mongodb_config()
     try:
         client = MongoClient(config['MONGO_URI'])
         db = client[config['DB_NAME']]
@@ -864,13 +864,14 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 if __name__ == "__main__":
     collection = init_mongo_scraped()
-    with open("diff_cn_clothing_shoes.json", "r", encoding='utf-8') as f:
+
+    with open(tasks_json, "r", encoding='utf-8') as f:
         tasks = json.load(f)
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
     
     COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-    COUNTRY = "US"
+    COUNTRY = cj_config['country']
     # COUNTRY = "CN"
 
     urls_ = [(d['name'], d['url'])for d in tracker.get_pending_tasks()]

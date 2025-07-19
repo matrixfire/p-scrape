@@ -5,7 +5,7 @@ from playwright.async_api import Page
 from typing import List, Optional
 from ocr_captcha import handle_captcha
 
-
+from config import cj_config
 import json
 from playwright.async_api import async_playwright, Page
 
@@ -20,8 +20,8 @@ async def handle_login_if_required(page: Page):
         print("ttttt1")
         await page.wait_for_selector('form[name="loginForm"]')
         print("ttttt2")
-        await page.fill('input[placeholder="Username/Email Address"]', 'tychan@163.com')
-        await page.fill('input[placeholder="Password"]', 'Kumai666888!')
+        await page.fill('input[placeholder="Username/Email Address"]', cj_config['cj_account'])
+        await page.fill('input[placeholder="Password"]', cj_config['cj_password'])
         await page.press('input[placeholder="Password"]', 'Enter')
         await page.wait_for_timeout(5000)
         print("[✓] Re-login completed.")

@@ -64,10 +64,6 @@ async def process_images(input_str: str) -> str:
 
 
 
-
-
-
-
 if __name__ == "__main__":
     input_txt = '''https://cf.cjdropshipping.com/20200815/1586159702191.jpg,https://cf.cjdropshipping.com/20200815/1843395913091.jpg,https://cf.cjdropshipping.com/20200815/230347672425.jpg,https://cf.cjdropshipping.com/20200815/2126261465771.jpg,https://cf.cjdropshipping.com/20200815/1885062424759.jpg,https://cf.cjdropshipping.com/20200815/5174623216464.jpg,https://cf.cjdropshipping.com/20200815/2963734965611.jpg,https://cf.cjdropshipping.com/20200815/1570377892509.jpg,https://cf.cjdropshipping.com/20200815/1256395175032.jpg,https://cf.cjdropshipping.com/20200815/3487517152974.jpg,https://cf.cjdropshipping.com/20200815/1988759026450.jpg,https://cf.cjdropshipping.com/20200815/5661968830548.jpg,https://cf.cjdropshipping.com/20200815/1110028528400.jpg,https://cf.cjdropshipping.com/20200815/935280742390.jpg,https://cf.cjdropshipping.com/20200815/827411496832.jpg,https://cf.cjdropshipping.com/20200815/3905396648946.jpg,https://cf.cjdropshipping.com/20200815/1807094612890.jpg,https://cf.cjdropshipping.com/20200815/832079616682.jpg,https://cf.cjdropshipping.com/20200815/344908446477.png,https://cf.cjdropshipping.com/20200815/217390828681.jpg,https://cf.cjdropshipping.com/20200815/1878864670836.png,https://cf.cjdropshipping.com/20200815/184482192613.jpg,https://cf.cjdropshipping.com/20200815/1142506019513.jpg,https://cf.cjdropshipping.com/20200815/1780531425430.jpg'''
     input_txt = 'https://cf.cjdropshipping.com/20200815/1586159702191.jpg'

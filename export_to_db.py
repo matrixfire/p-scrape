@@ -1,6 +1,6 @@
 import logging
 from pymongo import MongoClient
-from config import get_scraped_db_config
+from config import get_scraped_mongodb_config
 from utils import flatten_dict
 import time
 from db_handler import insert_product_data, insert_stock_price, update_stock_price, insert_many_product_data, insert_many_stock_price
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def connect_to_mongodb() -> Optional[Collection]:
     """Connect to MongoDB using the scraped database configuration"""
-    config = get_scraped_db_config()
+    config = get_scraped_mongodb_config()
     try:
         client = MongoClient(config['MONGO_URI'])
         db = client[config['DB_NAME']]
