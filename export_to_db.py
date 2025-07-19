@@ -142,7 +142,7 @@ def map_flattened_to_table2(row: Dict[str, Any]) -> Dict[str, Any]:
         mongo_key = MYSQL_TO_MONGO_MAP_T2.get(mysql_field, mysql_field)
         mapped[mysql_field] = row.get(mongo_key)
     # Debug print for shipping_fee
-    print(f"[DEBUG] shipping_fee in mapped row: {mapped.get('shipping_fee')}")
+    # print(f"[DEBUG] shipping_fee in mapped row: {mapped.get('shipping_fee')}")
     return mapped
 
 
