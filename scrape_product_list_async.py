@@ -137,11 +137,25 @@ def save_to_mongo(collection: Collection, products: List[Dict[str, Any]]) -> Non
             logger.info(f"Inserted: {product['name']}")
 
 
-def save_one_product_to_mongo(collection: Collection, product: Dict[str, Any]) -> None:
+def save_one_product_to_mongo_(collection: Collection, product: Dict[str, Any]) -> None:
+    '''OLD WAY'''
     if collection.find_one({"pid": product["pid"]}):
         logger.warning(f"Already exists: {product['pid']}")
     else:
         collection.insert_one(product)
+        logger.info(f"Inserted: {product['name']}")
+
+
+def save_one_product_to_mongo(collection: Collection, product: Dict[str, Any]) -> None:
+    result = collection.update_one(
+        {"pid": product["pid"]},         # filter condition
+        {"$set": product},               # update data
+        upsert=True                      # insert if not exists
+    )
+
+    if result.matched_count:
+        logger.info(f"Updated: {product['pid']}")
+    else:
         logger.info(f"Inserted: {product['name']}")
 
 
@@ -827,7 +841,7 @@ async def scrape_multiple_pages(
 
 async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details=3):
     async with async_playwright() as playwright:
-        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
+        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=True)
         
         all_results = []
 
