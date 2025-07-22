@@ -12,7 +12,7 @@ from pymongo.collection import Collection
 from pymongo import MongoClient, errors
 from typing import List, Dict, Any, Optional
 from playwright.async_api import ElementHandle
-from utils import async_timed, resolve_currency, extract_category_paths, save_log, load_name_url_tuples, TaskTracker, pretty_print_json
+from utils import async_timed, resolve_currency, extract_category_paths, TaskTracker, pretty_print_json, pretty_print
 import re
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
@@ -311,7 +311,9 @@ def getting_size(s):
     return size_name
 
 
-def get_country_data(data_list, target_country="US"):
+# from typing import List, Dict, Any
+
+def get_country_data(data_list: List[Dict[str, Any]], target_country: str = "US") -> Dict[str, Any]:
     for item in data_list:
         if item.get("countryCode") == target_country:
             return item
@@ -505,7 +507,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                 inventory_list = inv_entry.get("inventory", [])
 
                 if inventory_list:
-                    inv = get_country_data(inventory_list, "US") #; inventory_list[0]
+                    inv = get_country_data(inventory_list, COUNTRY) #; inventory_list[0]
                     inventory_lookup[vid] = {
                         "cjInventory": int(inv.get("cjInventory") or 0),
                         "factoryInventory": int(inv.get("factoryInventory") or 0)
@@ -544,6 +546,11 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                     "delivery_time": "",
                 }
                 # print(variant_details)
+                # adding a debugings:
+                if int(variant_details['cjInventory']) >= 1:
+                    pretty_print(str(variant_details['sku'])+f"(CJ stock): {variant_details['cjInventory']}\n url: {product_url}", 300)
+
+
                 if int(variant_details['cjInventory']) >= 5:
                     skus_need_shipping_dict[variant_details['sku']] = 1
                 else:
@@ -876,6 +883,8 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
         return all_results
 
 
+COUNTRY = cj_config['country']
+
 if __name__ == "__main__":
     collection = init_mongo_scraped()
 
@@ -884,8 +893,8 @@ if __name__ == "__main__":
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
     
-    COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
-    COUNTRY = cj_config['country']
+    # COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
+    
     # COUNTRY = "CN"
 
     urls_ = [(d['name'], d['url'])for d in tracker.get_pending_tasks()]

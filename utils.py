@@ -333,6 +333,23 @@ def pretty_print_json(data, title=None, max_value_length=0, max_list_length=0):
         print(f"[ERROR] Unexpected error: {e}")
 
 
+def pretty_print(msg, max_len=10):
+    try:
+        if not isinstance(msg, str):
+            raise ValueError("Input must be a string")
+
+        # Truncate with ellipsis if needed
+        display_msg = msg if len(msg) <= max_len else msg[:max_len] + "..."
+
+        # Create a border
+        border = "*" * (len(display_msg) + 10)
+        print(border)
+        print(f"*** {display_msg} ***")
+        print(border)
+
+    except Exception as e:
+        print("***** ERROR in pretty_print *****")
+        print(f"Reason: {e}")
 
 
 
