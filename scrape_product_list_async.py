@@ -22,6 +22,7 @@ from ocr_captcha import handle_captcha
 from handle_imgs import extract_valid_urls
 from choose_shipping import extract_shipping_info
 
+
 # ========== Logging setup ==========
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -93,6 +94,11 @@ def get_country_from_url(url: str) -> str:
     query = parse_qs(parsed.query)
     country = query.get('from', [None])[0]
     return country if country else "Global"
+
+
+def strip_query(url: str) -> str:
+    p = urlparse(url)
+    return f"{p.scheme}://{p.netloc}{p.path}"
 
 
 def set_country_in_url(url: str, country: str) -> str:
@@ -889,8 +895,16 @@ COUNTRY = cj_config['country']
 if __name__ == "__main__":
     collection = init_mongo_scraped()
 
+    # with open(tasks_json, "r", encoding='utf-8') as f:
+    #     tasks = json.load(f)
+
     with open(tasks_json, "r", encoding='utf-8') as f:
-        tasks = json.load(f)
+        raw_tasks = json.load(f)
+        tasks = [
+            {**task, "url": strip_query(task["url"])} 
+            for task in raw_tasks if "url" in task
+        ]
+
     tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
     
