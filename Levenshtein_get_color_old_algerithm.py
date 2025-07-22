@@ -1,4 +1,4 @@
-# import Levenshtein
+import Levenshtein
 
 COLOR_TRANSLATION = {
     "Black": "黑色",
@@ -62,7 +62,6 @@ COLOR_TRANSLATION = {
     "Blue and White": "蓝白色",
     "Red and White": "红白色"
 }    
-from rapidfuzz.distance import Levenshtein
 
 def guess_closest_match(word, candidates):
     return min(candidates, key=lambda x: Levenshtein.distance(word, x))
@@ -83,6 +82,7 @@ def get_color_name(input_str):
     words = normalized_input.split()
     key_words_lower = [k.lower() for k in COLOR_TRANSLATION]
 
+    # If more than 1 word and none match known keys, return "NOT FOUND"
     if len(words) > 1 and not any(word in key_words_lower for word in words):
         return "NOT FOUND"
 
