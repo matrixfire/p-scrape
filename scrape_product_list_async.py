@@ -521,6 +521,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                 variant_weight = item.get("weight")
                 variant_img = item.get("image").encode('utf-8').decode('unicode_escape')
                 variant_key = item.get("variantKey", "")
+                variant_key_en_flag = item.get("variantKeyEn", "").lower().split("-")[0] != 'size'
 
                 inventory_info = inventory_lookup.get(variant_id, {"cjInventory": 0, "factoryInventory": 0})
                 bg_imgs_str = ','.join(all_image_links)
@@ -535,8 +536,8 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                     "variant_image": variant_img,
                     "variant_key": variant_key,
                     "bg_img": ','.join([img_url for img_url in extract_valid_urls(bg_imgs_str) if img_url != variant_img]),
-                    "color": getting_color(variant_key),
-                    "size":  getting_size(variant_key),
+                    "color": getting_color(variant_key) if variant_key_en_flag else getting_size(variant_key),
+                    "size":  getting_size(variant_key) if variant_key_en_flag else getting_color(variant_key),
                     "length": extract_dimensions(item.get("standard", ""))[0],
                     "width": extract_dimensions(item.get("standard", ""))[1],
                     "height": extract_dimensions(item.get("standard", ""))[2],
