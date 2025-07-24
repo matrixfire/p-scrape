@@ -5,7 +5,7 @@ load_dotenv()
 
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
 SCRAPED_DB_NAME = os.getenv('SCRAPED_DB_NAME', 'scraped_db_new')
-SCRAPED_COLLECTION_NAME = os.getenv('SCRAPED_COLLECTION_NAME', 'products_clothing')
+SCRAPED_COLLECTION_NAME = os.getenv('SCRAPED_COLLECTION_NAME', 'products_cn_n2')
 
 def get_scraped_mongodb_config():
     return {
@@ -23,10 +23,11 @@ db_config = {
     "port": 28745,
 }
 
-tasks_json = 'diff_cn_clothing_shoes.json'
+tasks_json = 'diff_cn_n1.json'
 
 cj_config = {
 'cj_account': 'tychan@163.com',
 'cj_password': 'Kumai666888!',
-'country': 'CN'
+'country': 'CN',
+'headless': True
 }

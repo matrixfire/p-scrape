@@ -21,7 +21,7 @@ from Levenshtein_get_color import get_color_name
 from ocr_captcha import handle_captcha
 from handle_imgs import extract_valid_urls
 from choose_shipping import extract_shipping_info
-
+import export_to_db
 
 # ========== Logging setup ==========
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
@@ -215,7 +215,7 @@ def enrich_variants_with_product_id(product: dict) -> dict:
     # Remove the outer 'product_id'
     product["pid"] = product["product_id"]
     product.pop("product_id", None)
-    pretty_print_json(product, "Enriched Product Dict", 10, 3)
+    # pretty_print_json(product, "Enriched Product Dict", 10, 3)
 
     return product
 
@@ -807,7 +807,7 @@ async def scrape_multiple_pages(
     close_context = False
     if context is None or page is None:
         playwright = await async_playwright().start()
-        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=False)
+        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=cj_config['headless'])
         close_context = True
 
     all_products = []
@@ -855,7 +855,7 @@ async def scrape_multiple_pages(
 
 async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details=3):
     async with async_playwright() as playwright:
-        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=True)
+        browser, context, page, _, _ = await login_and_get_context(playwright=playwright, headless=cj_config['headless'])
         
         all_results = []
 
@@ -892,6 +892,10 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
 
 COUNTRY = cj_config['country']
 
+
+
+
+
 if __name__ == "__main__":
     collection = init_mongo_scraped()
 
@@ -918,3 +922,7 @@ if __name__ == "__main__":
 
     all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=3, collection=collection, tracker=tracker))
     logger.info(f"\nTotal products scraped: {len(all_products)}\n")
+
+
+    export_to_db.main()
+    logger.info(f"\nTotal products Exported to mysql: {len(all_products)}\n")
