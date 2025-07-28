@@ -955,6 +955,13 @@ async def main():
             all_products = await scrape_multiple_urls(urls, max_concurrent_details=3, collection=collection, tracker=tracker)
             logger.info(f"\nTotal products scraped for {collection_name}: {len(all_products)}\n")
 
+            # Export to database after each task completion
+            try:
+                export_to_db.main()
+                logger.info(f"✅ Database export completed for {collection_name}")
+            except Exception as e:
+                logger.error(f"❌ Database export failed for {collection_name}: {e}")
+
             # Mark as completed
             completed_tasks.append({
                 "name": collection_name,
@@ -997,16 +1004,6 @@ async def main():
     logger.info(f"Completed: {len(completed_tasks)}")
     logger.info(f"Failed: {len(failed_tasks)}")
     logger.info(f"Remaining: {len(tasks) - len(completed_tasks) - len(failed_tasks)}")
-
-    # Export to database only if there were successful scrapes
-    if completed_tasks:
-        try:
-            export_to_db.main()
-            logger.info(f"✅ Database export completed")
-        except Exception as e:
-            logger.error(f"❌ Database export failed: {e}")
-    else:
-        logger.warning("No completed tasks to export to database")
 
 
 if __name__ == "__main__":

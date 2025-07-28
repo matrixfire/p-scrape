@@ -15,14 +15,18 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(mes
 logger = logging.getLogger(__name__)
 
 
-def connect_to_mongodb() -> Optional[Collection]:
+def connect_to_mongodb(collection_name='') -> Optional[Collection]:
     """Connect to MongoDB using the scraped database configuration"""
     config = get_scraped_mongodb_config()
     try:
         client = MongoClient(config['MONGO_URI'])
         db = client[config['DB_NAME']]
-        collection = db[config['COLLECTION_NAME']]
-        logger.info(f"Connected to MongoDB: {config['DB_NAME']}.{config['COLLECTION_NAME']}")
+        if not collection_name:
+            collection_name = config['COLLECTION_NAME']
+            collection = db[collection_name]
+        else:
+            collection = db[collection_name]
+        logger.info(f"Connected to MongoDB: {config['DB_NAME']}.{collection_name}")
         return collection
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
@@ -150,7 +154,7 @@ INSERT_MODE = 'both'  # Options: 'product', 'stock', 'both'
 
 
 
-def main():
+def main(collection_name=''):
     """
     Main function to export data from MongoDB to MySQL.
     Steps:
@@ -161,7 +165,10 @@ def main():
     """
     logger.info("Starting MongoDB to MySQL export process...")
     print("[DEBUG] Connecting to MongoDB...")
-    collection = connect_to_mongodb()
+    if not collection_name:
+        collection = connect_to_mongodb()
+    else:
+        collection = connect_to_mongodb(collection_name)
     if collection is None:
         logger.error("Failed to connect to MongoDB. Exiting.")
         print("[DEBUG] MongoDB connection failed. Exiting.")
@@ -212,4 +219,30 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    # Temporary list of collection names
+    temp_collections = [
+        "宠物袋",
+        "宠物喝水工具", 
+        "宠物家具保护套",
+        "宠物碗",
+        "宠物屋和笼子",
+        "挂毯",
+        "猫树和公寓",
+        "猫抓板",
+        "女士风衣",
+        "女式棉服",
+        "外套",
+        "鱼缸清洁用品",
+        "运动夹克",
+        "坐垫套"
+    ]
+    
+    # Iterate through each collection name and call main
+    for collection_name in temp_collections:
+        print(f"\n=== Processing collection: {collection_name} ===")
+        try:
+            main(collection_name)
+            print(f"✅ Successfully processed: {collection_name}")
+        except Exception as e:
+            print(f"❌ Failed to process {collection_name}: {e}")
+            continue 
