@@ -555,7 +555,7 @@ async def extract_variant_skus_and_inventory(page, product_dict: Dict[str, Any],
                 # print(variant_details)
                 # adding a debugings:
                 if int(variant_details['cjInventory']) >= 1:
-                    pretty_print(str(variant_details['sku'])+f"(CJ stock): {variant_details['cjInventory']}\n url: {product_url}", 300)
+                    pretty_print(str(variant_details['sku'])+f"(CJ stock): {variant_details['cjInventory']}\n url: {product_url}", 30)
 
 
                 if int(variant_details['cjInventory']) >= 5:
@@ -839,7 +839,7 @@ async def scrape_multiple_pages(
             # category = await get_breadcrumb(page, category)
             print("FOUND CATEGORY", category)
             product.update({"country": country})
-            pretty_print_json(product, "AFTER scrape_multiple_pages", 30, 5)
+            pretty_print_json(product, "AFTER scrape_multiple_pages", 30, 3)
 
         products = list(map(enrich_variants_with_product_id, products))
         all_products.extend(products)
@@ -884,7 +884,7 @@ async def scrape_multiple_urls(urls, collection, tracker, max_concurrent_details
                 save_one_product_to_mongo(collection, product)
             tracker.mark_done({'name':url_obj[0], 'url': url_obj[1].split('?')[0]})
 
-        await asyncio.sleep(1011) #testing
+        await asyncio.sleep(101) #testing
 
         await browser.close()
         return all_results
