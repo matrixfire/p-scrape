@@ -121,13 +121,17 @@ def set_country_in_url(url: str, country: str) -> str:
 
 
 # ========== MongoDB helpers ==========
-def init_mongo_scraped() -> Optional[Collection]:
+def init_mongo_scraped(collection_name='') -> Optional[Collection]:
     config = get_scraped_mongodb_config()
     try:
         client = MongoClient(config['MONGO_URI'])
         db = client[config['DB_NAME']]
-        collection = db[config['COLLECTION_NAME']]
-        logger.info(f"MongoDB connected: {config['DB_NAME']}.{config['COLLECTION_NAME']}")
+        if not collection_name:
+            collection_name = config['COLLECTION_NAME']
+            collection = db[collection_name]
+        else:
+            collection = db[collection_name]
+        logger.info(f"MongoDB connected: {config['DB_NAME']}.{collection_name}")
         return collection
     except errors.ConnectionFailure as e:
         logger.error(f"MongoDB connection failed: {e}")
@@ -894,11 +898,7 @@ COUNTRY = cj_config['country']
 
 
 
-
-
-if __name__ == "__main__":
-    collection = init_mongo_scraped()
-
+async def main():
     # with open(tasks_json, "r", encoding='utf-8') as f:
     #     tasks = json.load(f)
 
@@ -909,20 +909,105 @@ if __name__ == "__main__":
             for task in raw_tasks if "url" in task
         ]
 
-    tracker = TaskTracker(tasks, id_key='url', progress_file='')
     print(f"Found tasks: {len(tasks)}\n")
     
     # COUNTRY = get_country_from_url(PRODUCT_LIST_URL)
     
     # COUNTRY = "CN"
 
-    urls_ = [(d['name'], d['url'])for d in tracker.get_pending_tasks()]
-    urls = [(t[0], set_country_in_url(t[1], COUNTRY)) for t in urls_]
-    print(urls)
+    # Progress tracking
+    progress_file = "scraping_progress.json"
+    completed_tasks = []
+    failed_tasks = []
+    
+    # Load existing progress if available
+    try:
+        with open(progress_file, "r", encoding='utf-8') as f:
+            progress_data = json.load(f)
+            completed_tasks = progress_data.get("completed", [])
+            failed_tasks = progress_data.get("failed", [])
+            logger.info(f"Loaded progress: {len(completed_tasks)} completed, {len(failed_tasks)} failed")
+    except FileNotFoundError:
+        logger.info("No existing progress file found, starting fresh")
 
-    all_products = asyncio.run(scrape_multiple_urls(urls, max_concurrent_details=3, collection=collection, tracker=tracker))
-    logger.info(f"\nTotal products scraped: {len(all_products)}\n")
+    # Filter out already completed tasks
+    completed_urls = {task["url"] for task in completed_tasks}
+    failed_urls = {task["url"] for task in failed_tasks}
+    pending_tasks = [task for task in tasks if task["url"] not in completed_urls and task["url"] not in failed_urls]
+    
+    logger.info(f"Pending tasks: {len(pending_tasks)}")
+
+    for each_task in pending_tasks:
+        collection_name = each_task['name']
+        task_url = each_task['url']
+        
+        logger.info(f"\n=== Processing task: {collection_name} ===\n")
+        
+        try:
+            tracker = TaskTracker([each_task], id_key='url', progress_file='')
+            print(f"Processing task: {collection_name}\n")
+            
+            urls_ = [(d['name'], d['url']) for d in tracker.get_pending_tasks()]
+            urls = [(t[0], set_country_in_url(t[1], COUNTRY)) for t in urls_]
+            print(urls)
+
+            collection = init_mongo_scraped(collection_name=collection_name)
+            all_products = await scrape_multiple_urls(urls, max_concurrent_details=3, collection=collection, tracker=tracker)
+            logger.info(f"\nTotal products scraped for {collection_name}: {len(all_products)}\n")
+
+            # Mark as completed
+            completed_tasks.append({
+                "name": collection_name,
+                "url": task_url,
+                "products_count": len(all_products),
+                "completed_at": asyncio.get_event_loop().time()
+            })
+            
+            logger.info(f"✅ Successfully completed: {collection_name}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to process task {collection_name}: {str(e)}")
+            
+            # Mark as failed
+            failed_tasks.append({
+                "name": collection_name,
+                "url": task_url,
+                "error": str(e),
+                "failed_at": asyncio.get_event_loop().time()
+            })
+            
+            # Continue to next task
+            continue
+        
+        # Save progress after each task
+        try:
+            with open(progress_file, "w", encoding='utf-8') as f:
+                json.dump({
+                    "completed": completed_tasks,
+                    "failed": failed_tasks,
+                    "last_updated": asyncio.get_event_loop().time()
+                }, f, ensure_ascii=False, indent=2)
+            logger.info(f"Progress saved: {len(completed_tasks)} completed, {len(failed_tasks)} failed")
+        except Exception as e:
+            logger.error(f"Failed to save progress: {e}")
+
+    # Final summary
+    logger.info(f"\n=== FINAL SUMMARY ===")
+    logger.info(f"Total tasks: {len(tasks)}")
+    logger.info(f"Completed: {len(completed_tasks)}")
+    logger.info(f"Failed: {len(failed_tasks)}")
+    logger.info(f"Remaining: {len(tasks) - len(completed_tasks) - len(failed_tasks)}")
+
+    # Export to database only if there were successful scrapes
+    if completed_tasks:
+        try:
+            export_to_db.main()
+            logger.info(f"✅ Database export completed")
+        except Exception as e:
+            logger.error(f"❌ Database export failed: {e}")
+    else:
+        logger.warning("No completed tasks to export to database")
 
 
-    export_to_db.main()
-    logger.info(f"\nTotal products Exported to mysql: {len(all_products)}\n")
+if __name__ == "__main__":
+    asyncio.run(main())

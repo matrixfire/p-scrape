@@ -23,11 +23,11 @@ db_config = {
     "port": 28745,
 }
 
-tasks_json = 'diff_cn2.json'
+tasks_json = 'filtered_categories.json'
 
 cj_config = {
 'cj_account': 'tychan@163.com',
 'cj_password': 'Kumai666888!',
-'country': 'CN',
+'country': 'US',
 'headless': True
 }
